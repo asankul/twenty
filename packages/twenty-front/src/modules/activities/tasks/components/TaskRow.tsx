@@ -1,5 +1,6 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
+import { useState } from 'react';
 
 import { getActivitySummary } from '@/activities/utils/getActivitySummary';
 import { beautifyExactDate, hasDatePassed } from '~/utils/date-utils';
@@ -15,6 +16,7 @@ import { useObjectMorphJunctionConfigOrThrow } from '@/object-record/record-fiel
 import { RecordFieldComponentInstanceContext } from '@/object-record/record-field/ui/states/contexts/RecordFieldComponentInstanceContext';
 import { RecordInlineCell } from '@/object-record/record-inline-cell/components/RecordInlineCell';
 import { getRecordFieldInputInstanceId } from '@/object-record/utils/getRecordFieldInputId';
+import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
 import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { OverflowingTextWithTooltip } from 'twenty-ui/primitives/typography';
@@ -29,6 +31,35 @@ const StyledTaskBody = styled.div`
   overflow: hidden;
   padding-bottom: 1px;
   text-overflow: ellipsis;
+`;
+
+const StyledTitleInput = styled.input<{
+  completed: boolean;
+}>`
+  background: transparent;
+  border: 0;
+  color: ${themeCssVariables.font.color.primary};
+  flex: 1;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: ${themeCssVariables.font.weight.medium};
+  min-width: 0;
+  outline: none;
+  padding: 0 ${themeCssVariables.spacing[2]};
+  text-decoration: ${({ completed }) => (completed ? 'line-through' : 'none')};
+`;
+
+const StyledAssignee = styled.span`
+  align-items: center;
+  background: ${themeCssVariables.background.transparent.light};
+  border-radius: ${themeCssVariables.border.radius.sm};
+  color: ${themeCssVariables.font.color.secondary};
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: ${themeCssVariables.font.size.xs};
+  margin-right: ${themeCssVariables.spacing[2]};
+  padding: 1px 6px;
+  white-space: nowrap;
 `;
 
 const StyledTaskTitle = styled.div<{
@@ -90,6 +121,28 @@ const StyledCheckboxContainer = styled.div`
 export const TaskRow = ({ task }: { task: Task }) => {
   const theme = useTheme();
   const { openRecordInSidePanel } = useOpenRecordInSidePanel();
+  const { updateOneRecord } = useUpdateOneRecord();
+  const [title, setTitle] = useState(task.title ?? '');
+
+  const saveTitle = async () => {
+    if (title === (task.title ?? '')) {
+      return;
+    }
+
+    await updateOneRecord({
+      objectNameSingular: CoreObjectNameSingular.Task,
+      idToUpdate: task.id,
+      updateOneRecordInput: { title },
+    });
+  };
+
+  const assigneeName = [
+    task.assignee?.name?.firstName,
+    task.assignee?.name?.lastName,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
 
   const body = getActivitySummary(task?.bodyV2?.blocknote ?? null);
 
@@ -128,14 +181,30 @@ export const TaskRow = ({ task }: { task: Task }) => {
             onCheckedChange={completeTask}
           />
         </StyledCheckboxContainer>
-        <StyledTaskTitle completed={task.status === 'DONE'}>
-          {task.title || <StyledPlaceholder>{t`Task title`}</StyledPlaceholder>}
-        </StyledTaskTitle>
+        <StyledTitleInput
+          completed={task.status === 'DONE'}
+          value={title}
+          placeholder={t`Task title`}
+          onClick={(event) => event.stopPropagation()}
+          onChange={(event) => setTitle(event.target.value)}
+          onBlur={saveTitle}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.currentTarget.blur();
+            }
+
+            if (event.key === 'Escape') {
+              setTitle(task.title ?? '');
+              event.currentTarget.blur();
+            }
+          }}
+        />
         <StyledTaskBody>
           <OverflowingTextWithTooltip text={body} />
         </StyledTaskBody>
       </StyledLeftSideContainer>
       <StyledRightSideContainer>
+        {assigneeName !== '' && <StyledAssignee>{assigneeName}</StyledAssignee>}
         {task.dueAt && (
           <StyledDueDate
             isPast={hasDatePassed(task.dueAt) && task.status === 'TODO'}
