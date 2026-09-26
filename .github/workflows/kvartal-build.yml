@@ -54,8 +54,9 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/twenty:latest
             ghcr.io/${{ github.repository_owner }}/twenty:${{ github.sha }}
+          # Версия обязана быть вида 1.2.3 — иначе сервер не стартует
           build-args: |
-            APP_VERSION=kvartal-${{ github.run_number }}
+            APP_VERSION=0.1.${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
