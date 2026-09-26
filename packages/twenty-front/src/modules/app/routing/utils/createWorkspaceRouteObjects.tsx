@@ -53,6 +53,14 @@ const MobileHomePage = lazy(() =>
   })),
 );
 
+// Структура отдела: дерево «кто под кем». Таблица сотрудников показывает
+// список, но не отношения, а они и нужны руководителю.
+const TeamStructurePage = lazy(() =>
+  import('~/pages/team-structure/TeamStructurePage').then((module) => ({
+    default: module.TeamStructurePage,
+  })),
+);
+
 const NotFound = lazy(() =>
   import('~/pages/not-found/NotFound').then((module) => ({
     default: module.NotFound,
@@ -161,6 +169,15 @@ export const createWorkspaceRouteObjects = ({
     {
       path: AppPath.Dpa,
       element: <Navigate to={getSettingsPath(SettingsPath.LegalDpa)} replace />,
+    },
+    {
+      path: '/team-structure',
+      element: (
+        <LazyRoute>
+          <TeamStructurePage />
+        </LazyRoute>
+      ),
+      handle: { workspaceSurfaces: MAIN_AND_SIDE_PANEL },
     },
     {
       path: AppPath.NotFoundWildcard,
