@@ -25,7 +25,12 @@ export const NavigationMenuItemLinkDisplay = ({
   const label = getLinkNavigationMenuItemLabel(item);
   const computedLink = getLinkNavigationMenuItemComputedLink(item);
 
-  const defaultRightOptions = !isLayoutCustomizationModeEnabled && (
+  // Стрелка «наружу» уместна только у внешних ссылок: у внутренней она
+  // обещает уход из приложения, которого не происходит.
+  const isInternalLink = computedLink.startsWith('/');
+
+  const defaultRightOptions = !isLayoutCustomizationModeEnabled &&
+    !isInternalLink && (
     <IconArrowUpRight
       size={theme.icon.size.sm}
       stroke={theme.icon.stroke.md}
