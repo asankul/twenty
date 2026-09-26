@@ -61,6 +61,14 @@ const TeamStructurePage = lazy(() =>
   })),
 );
 
+// Задачи одной лентой: галочка, исполнитель и срок правятся в строке,
+// без открытия записи.
+const TaskBoardPage = lazy(() =>
+  import('~/pages/task-board/TaskBoardPage').then((module) => ({
+    default: module.TaskBoardPage,
+  })),
+);
+
 const NotFound = lazy(() =>
   import('~/pages/not-found/NotFound').then((module) => ({
     default: module.NotFound,
@@ -175,6 +183,15 @@ export const createWorkspaceRouteObjects = ({
       element: (
         <LazyRoute>
           <TeamStructurePage />
+        </LazyRoute>
+      ),
+      handle: { workspaceSurfaces: MAIN_AND_SIDE_PANEL },
+    },
+    {
+      path: '/task-board',
+      element: (
+        <LazyRoute>
+          <TaskBoardPage />
         </LazyRoute>
       ),
       handle: { workspaceSurfaces: MAIN_AND_SIDE_PANEL },

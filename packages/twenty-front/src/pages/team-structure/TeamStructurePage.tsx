@@ -142,9 +142,7 @@ export const TeamStructurePage = () => {
     limit: 200,
   });
 
-  const { updateOneRecord } = useUpdateOneRecord({
-    objectNameSingular: 'workspaceMember',
-  });
+  const { updateOneRecord } = useUpdateOneRecord();
 
   // Варианты команд берём из самих людей: список задаётся в настройках поля,
   // и дублировать его здесь значило бы расходиться с ним при каждой правке.
@@ -170,7 +168,11 @@ export const TeamStructurePage = () => {
   }, [records]);
 
   const change = (member: Member, patch: Partial<Member>) =>
-    updateOneRecord({ idToUpdate: member.id, updateOneRecordInput: patch });
+    updateOneRecord({
+      objectNameSingular: 'workspaceMember',
+      idToUpdate: member.id,
+      updateOneRecordInput: patch,
+    });
 
   const card = (member: Member, isSenior: boolean) => (
     <StyledCard key={member.id} isSenior={isSenior}>
