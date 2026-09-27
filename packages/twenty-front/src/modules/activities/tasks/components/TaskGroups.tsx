@@ -28,6 +28,7 @@ export const TaskGroups = ({ targetableObject }: TaskGroupsProps) => {
         isLoading={tasksLoading}
         onCreateTask={canCreateActivity ? createActivity : undefined}
         tasks={tasks}
+        targetableObject={canCreateActivity ? targetableObject : undefined}
       />
     </>
   );
