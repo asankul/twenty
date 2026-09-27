@@ -119,6 +119,19 @@ export const NavigationMenuItemIcon = ({
       views,
       isInitialObjectViewEnabled,
     });
+    // У внутренней страницы нет значка сайта: подтягивать его неоткуда,
+    // и вместо иконки раздела получается чужой глобус.
+    if (computedLink.startsWith('/')) {
+      const LinkItemIcon = getIcon(navigationMenuItem.icon);
+
+      return (
+        <ColoredIcon
+          Icon={LinkItemIcon}
+          color={getNavigationMenuItemColor(navigationMenuItem)}
+        />
+      );
+    }
+
     return (
       <LinkIconWithLinkOverlay
         link={computedLink}
