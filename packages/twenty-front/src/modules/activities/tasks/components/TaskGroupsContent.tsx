@@ -1,4 +1,6 @@
 import { SkeletonLoader } from '@/activities/components/SkeletonLoader';
+import { TaskInlineCreate } from '@/activities/tasks/components/TaskInlineCreate';
+import { type ActivityTargetableObject } from '@/activities/types/ActivityTargetableEntity';
 import { TaskList } from '@/activities/tasks/components/TaskList';
 import { type Task } from '@/activities/types/Task';
 import { useObjectMetadataItem } from '@/object-metadata/hooks/useObjectMetadataItem';
@@ -23,12 +25,14 @@ type TaskGroupsContentProps = {
   isLoading: boolean;
   onCreateTask: (() => void) | undefined;
   tasks: Task[];
+  targetableObject?: ActivityTargetableObject;
 };
 
 export const TaskGroupsContent = ({
   isLoading,
   onCreateTask,
   tasks,
+  targetableObject,
 }: TaskGroupsContentProps) => {
   const { objectMetadataItem: taskObjectMetadataItem } = useObjectMetadataItem({
     objectNameSingular: CoreObjectNameSingular.Task,
@@ -61,6 +65,9 @@ export const TaskGroupsContent = ({
             variant="outline"
           >{t`New task`}</Button>
         )}
+        {isDefined(targetableObject) && (
+          <TaskInlineCreate targetableObject={targetableObject} />
+        )}
       </EmptyState.Root>
     );
   }
@@ -87,6 +94,9 @@ export const TaskGroupsContent = ({
             />
           );
         },
+      )}
+      {isDefined(targetableObject) && (
+        <TaskInlineCreate targetableObject={targetableObject} />
       )}
     </StyledContainer>
   );
