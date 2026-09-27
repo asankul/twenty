@@ -16,6 +16,7 @@ import { useObjectMorphJunctionConfigOrThrow } from '@/object-record/record-fiel
 import { RecordFieldComponentInstanceContext } from '@/object-record/record-field/ui/states/contexts/RecordFieldComponentInstanceContext';
 import { RecordInlineCell } from '@/object-record/record-inline-cell/components/RecordInlineCell';
 import { getRecordFieldInputInstanceId } from '@/object-record/utils/getRecordFieldInputId';
+import { TaskComments } from '@/activities/tasks/components/TaskComments';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
 import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
@@ -47,6 +48,27 @@ const StyledTitleInput = styled.input<{
   outline: none;
   padding: 0 ${themeCssVariables.spacing[2]};
   text-decoration: ${({ completed }) => (completed ? 'line-through' : 'none')};
+`;
+
+const StyledWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+`;
+
+const StyledCommentsToggle = styled.button`
+  background: transparent;
+  border: 0;
+  color: ${themeCssVariables.font.color.tertiary};
+  cursor: pointer;
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.xxs};
+  padding: 0 0 ${themeCssVariables.spacing[1]} ${themeCssVariables.spacing[6]};
+  text-align: left;
+
+  &:hover {
+    color: ${themeCssVariables.font.color.secondary};
+  }
 `;
 
 const StyledAssignee = styled.span`
@@ -123,6 +145,7 @@ export const TaskRow = ({ task }: { task: Task }) => {
   const { openRecordInSidePanel } = useOpenRecordInSidePanel();
   const { updateOneRecord } = useUpdateOneRecord();
   const [title, setTitle] = useState(task.title ?? '');
+  const [areCommentsOpen, setAreCommentsOpen] = useState(false);
 
   const saveTitle = async () => {
     if (title === (task.title ?? '')) {
@@ -161,6 +184,7 @@ export const TaskRow = ({ task }: { task: Task }) => {
   });
 
   return (
+    <StyledWrapper>
     <ActivityRow
       onClick={() => {
         openRecordInSidePanel({
@@ -242,5 +266,15 @@ export const TaskRow = ({ task }: { task: Task }) => {
         }
       </StyledRightSideContainer>
     </ActivityRow>
+      <StyledCommentsToggle
+        onClick={(event) => {
+          event.stopPropagation();
+          setAreCommentsOpen(!areCommentsOpen);
+        }}
+      >
+        {areCommentsOpen ? t`Hide comments` : t`Comments`}
+      </StyledCommentsToggle>
+      {areCommentsOpen && <TaskComments taskId={task.id} />}
+    </StyledWrapper>
   );
 };
