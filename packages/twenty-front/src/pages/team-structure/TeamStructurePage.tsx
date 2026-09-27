@@ -2,6 +2,7 @@ import { styled } from '@linaria/react';
 import { useMemo } from 'react';
 import { themeCssVariables } from 'twenty-ui/theme';
 
+import { useObjectMetadataItem } from '@/object-metadata/hooks/useObjectMetadataItem';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
 
@@ -144,15 +145,22 @@ export const TeamStructurePage = () => {
 
   const { updateOneRecord } = useUpdateOneRecord();
 
-  // Варианты команд берём из самих людей: список задаётся в настройках поля,
-  // и дублировать его здесь значило бы расходиться с ним при каждой правке.
-  const teams = useMemo(() => {
-    const seen = new Set<string>();
-    records.forEach((member) => {
-      if (member.team) seen.add(member.team);
-    });
-    return [...seen].sort();
-  }, [records]);
+  const { objectMetadataItem } = useObjectMetadataItem({
+    objectNameSingular: 'workspaceMember',
+  });
+
+  // Варианты берём из настройки поля, а не из того, что уже проставлено:
+  // пока ни у кого нет команды, второй способ даёт пустой список, и назначить
+  // первую команду становится нечем.
+  const teams = useMemo(
+    () =>
+      (objectMetadataItem.fields.find((field) => field.name === 'team')
+        ?.options ?? []).map((option) => ({
+        value: option.value,
+        label: option.label,
+      })),
+    [objectMetadataItem],
+  );
 
   const grouped = useMemo(() => {
     const byTeam = new Map<string, Member[]>();
@@ -189,8 +197,8 @@ export const TeamStructurePage = () => {
         >
           <option value="">— без команды —</option>
           {teams.map((team) => (
-            <option key={team} value={team}>
-              {team}
+            <option key={team.value} value={team.value}>
+              {team.label}
             </option>
           ))}
         </StyledSelect>
@@ -226,14 +234,14 @@ export const TeamStructurePage = () => {
       </StyledHeader>
 
       {teams.map((team) => {
-        const members = grouped.byTeam.get(team) ?? [];
+        const members = grouped.byTeam.get(team.value) ?? [];
         const senior = members.find((member) => member.seniority === 'SENIOR');
         const rest = members.filter((member) => member !== senior);
 
         return (
-          <StyledTeam key={team}>
+          <StyledTeam key={team.value}>
             <StyledTeamName>
-              {team}
+              {team.label}
               <StyledCount>{members.length} чел.</StyledCount>
             </StyledTeamName>
             {senior ? (
