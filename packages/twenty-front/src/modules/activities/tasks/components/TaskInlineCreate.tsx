@@ -7,7 +7,10 @@ import { useCreateTaskInline } from '@/activities/tasks/hooks/useCreateTaskInlin
 import { type ActivityTargetableObject } from '@/activities/types/ActivityTargetableEntity';
 
 /**
- * Строка «новая задача» внизу списка.
+ * Строка «новая задача» над списком.
+ *
+ * Наверху, потому что список растёт вниз без ограничения по высоте: внизу
+ * строка уезжала бы за экран тем дальше, чем больше задач уже заведено.
  *
  * Enter создаёт задачу и оставляет поле пустым и в фокусе: подряд записать
  * три дела нужно чаще, чем одно, и каждое не должно стоить отдельного окна.
@@ -15,7 +18,7 @@ import { type ActivityTargetableObject } from '@/activities/types/ActivityTarget
 
 const StyledRow = styled.div`
   align-items: center;
-  border-top: 1px solid ${themeCssVariables.border.color.light};
+  border-bottom: 1px solid ${themeCssVariables.border.color.light};
   display: flex;
   gap: ${themeCssVariables.spacing[2]};
   padding: ${themeCssVariables.spacing[2]} 0;

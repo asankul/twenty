@@ -78,6 +78,9 @@ export const TaskGroupsContent = ({
 
   return (
     <StyledContainer>
+      {isDefined(targetableObject) && (
+        <TaskInlineCreate targetableObject={targetableObject} />
+      )}
       {sortedTasksByStatus.map(
         ([status, tasksByStatus]: [string, Task[]], index) => {
           const statusOption = taskStatusOptions?.find(
@@ -90,13 +93,10 @@ export const TaskGroupsContent = ({
               title={statusOption?.label ?? status}
               titleColor={statusOption?.color ?? 'transparent'}
               tasks={tasksByStatus}
-              isFirst={index === 0}
+              isFirst={index === 0 && !isDefined(targetableObject)}
             />
           );
         },
-      )}
-      {isDefined(targetableObject) && (
-        <TaskInlineCreate targetableObject={targetableObject} />
       )}
     </StyledContainer>
   );
