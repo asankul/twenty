@@ -3,7 +3,6 @@ import { t } from '@lingui/core/macro';
 import { useState } from 'react';
 
 import { getActivitySummary } from '@/activities/utils/getActivitySummary';
-import { beautifyExactDate, hasDatePassed } from '~/utils/date-utils';
 
 import { ActivityRow } from '@/activities/components/ActivityRow';
 import { useActivityFieldComponentInstanceId } from '@/activities/hooks/useActivityFieldComponentInstanceId';
@@ -21,9 +20,8 @@ import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
 import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { OverflowingTextWithTooltip } from 'twenty-ui/primitives/typography';
-import { IconCalendar } from 'twenty-ui/icon';
 import { Checkbox } from 'twenty-ui/primitives/input';
-import { useTheme, themeCssVariables } from 'twenty-ui/theme';
+import { themeCssVariables } from 'twenty-ui/theme';
 
 const StyledTaskBody = styled.div`
   color: ${themeCssVariables.font.color.tertiary};
@@ -99,18 +97,10 @@ const StyledTaskTitle = styled.div<{
   white-space: nowrap;
 `;
 
-const StyledDueDate = styled.div<{
-  isPast: boolean;
-}>`
-  align-items: center;
-  color: ${({ isPast }) =>
-    isPast
-      ? themeCssVariables.font.color.danger
-      : themeCssVariables.font.color.secondary};
-  display: flex;
-  gap: ${themeCssVariables.spacing[1]};
-  padding-left: ${themeCssVariables.spacing[1]};
-  white-space: nowrap;
+const StyledDueDateCell = styled.div`
+  flex-shrink: 0;
+  margin-right: ${themeCssVariables.spacing[2]};
+  min-width: 96px;
 `;
 
 const StyledRightSideContainer = styled.div`
@@ -141,7 +131,6 @@ const StyledCheckboxContainer = styled.div`
 `;
 
 export const TaskRow = ({ task }: { task: Task }) => {
-  const theme = useTheme();
   const { openRecordInSidePanel } = useOpenRecordInSidePanel();
   const { updateOneRecord } = useUpdateOneRecord();
   const [title, setTitle] = useState(task.title ?? '');
@@ -181,6 +170,14 @@ export const TaskRow = ({ task }: { task: Task }) => {
     recordId: task.id,
     fieldName: junctionFieldName,
     prefix: instanceIdPrefix,
+  });
+
+  const dueAtInstanceIdPrefix =
+    useActivityFieldComponentInstanceId('task-row-due-at');
+  const dueAtComponentInstanceId = getRecordFieldInputInstanceId({
+    recordId: task.id,
+    fieldName: 'dueAt',
+    prefix: dueAtInstanceIdPrefix,
   });
 
   return (
@@ -229,14 +226,32 @@ export const TaskRow = ({ task }: { task: Task }) => {
       </StyledLeftSideContainer>
       <StyledRightSideContainer>
         {assigneeName !== '' && <StyledAssignee>{assigneeName}</StyledAssignee>}
-        {task.dueAt && (
-          <StyledDueDate
-            isPast={hasDatePassed(task.dueAt) && task.status === 'TODO'}
+        <StyledDueDateCell>
+          <FieldContextProvider
+            objectNameSingular={CoreObjectNameSingular.Task}
+            objectRecordId={task.id}
+            fieldMetadataName="dueAt"
+            fieldPosition={0}
+            showLabel={false}
+            isDisplayModeFixHeight
           >
-            <IconCalendar size={theme.icon.size.md} />
-            {beautifyExactDate(task.dueAt)}
-          </StyledDueDate>
-        )}
+            <RecordFieldsScopeContextProvider
+              value={{
+                scopeInstanceId: task.id,
+              }}
+            >
+              <StopPropagationContainer>
+                <RecordFieldComponentInstanceContext.Provider
+                  value={{ instanceId: dueAtComponentInstanceId }}
+                >
+                  <RecordInlineCell
+                    instanceIdPrefix={dueAtInstanceIdPrefix}
+                  />
+                </RecordFieldComponentInstanceContext.Provider>
+              </StopPropagationContainer>
+            </RecordFieldsScopeContextProvider>
+          </FieldContextProvider>
+        </StyledDueDateCell>
         {
           <StyledActivityTargetsContainer>
             <FieldContextProvider
