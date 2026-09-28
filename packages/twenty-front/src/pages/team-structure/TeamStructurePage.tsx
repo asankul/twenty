@@ -228,8 +228,8 @@ export const TeamStructurePage = () => {
       <StyledHeader>
         <StyledTitle>Структура отдела</StyledTitle>
         <StyledSubtitle>
-          Старший брокер стоит над своей командой. Менять состав может только
-          администратор.
+          Старший брокер стоит над своей командой и может менять её состав.
+          Видно свою команду и тех, кто пока без команды.
         </StyledSubtitle>
       </StyledHeader>
 
