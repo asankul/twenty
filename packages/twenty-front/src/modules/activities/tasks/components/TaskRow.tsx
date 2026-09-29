@@ -64,19 +64,6 @@ const StyledCommentsToggle = styled.button`
   }
 `;
 
-const StyledAssignee = styled.span`
-  align-items: center;
-  background: ${themeCssVariables.background.transparent.light};
-  border-radius: ${themeCssVariables.border.radius.sm};
-  color: ${themeCssVariables.font.color.secondary};
-  display: inline-flex;
-  flex-shrink: 0;
-  font-size: ${themeCssVariables.font.size.xs};
-  margin-right: ${themeCssVariables.spacing[2]};
-  padding: 1px 6px;
-  white-space: nowrap;
-`;
-
 const StyledTaskTitle = styled.div<{
   completed: boolean;
 }>`
@@ -127,6 +114,25 @@ const StyledCancelButton = styled.button`
     background: ${themeCssVariables.background.transparent.light};
     color: ${themeCssVariables.font.color.secondary};
     opacity: 1;
+  }
+`;
+
+const StyledAssigneeSelect = styled.select`
+  background: transparent;
+  border: 0;
+  border-radius: ${themeCssVariables.border.radius.sm};
+  color: ${themeCssVariables.font.color.secondary};
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.xs};
+  margin-left: ${themeCssVariables.spacing[1]};
+  max-width: 140px;
+  outline: none;
+  padding: 2px 4px;
+
+  &:hover {
+    background: ${themeCssVariables.background.transparent.light};
   }
 `;
 
@@ -241,6 +247,24 @@ export const TaskRow = ({ task }: { task: Task }) => {
     });
   };
 
+  // Список для передачи задачи. Права уже ограничивают выдачу: старший
+  // брокер получит свою команду и безкомандных, чужих в списке не будет.
+  const { records: members } = useFindManyRecords<{
+    id: string;
+    name?: { firstName?: string | null; lastName?: string | null } | null;
+  }>({
+    objectNameSingular: 'workspaceMember',
+    limit: 200,
+  });
+
+  const saveAssignee = async (value: string) => {
+    await updateOneRecord({
+      objectNameSingular: CoreObjectNameSingular.Task,
+      idToUpdate: task.id,
+      updateOneRecordInput: { assigneeId: value === '' ? null : value },
+    });
+  };
+
   // Счётчик берём отдельным запросом с limit 0: нужна только цифра,
   // сами комментарии грузятся, лишь когда ленту разворачивают.
   const { totalCount: commentCount } = useFindManyRecords({
@@ -264,16 +288,30 @@ export const TaskRow = ({ task }: { task: Task }) => {
             onCheckedChange={completeTask}
           />
         </StyledCheckboxContainer>
-        {isDefined(task.assignee) && (
-          <StyledAvatarSlot>
-            <Avatar
-              src={task.assignee.avatarUrl}
-              name={assigneeName}
-              size="sm"
-              shape="rounded"
-            />
-          </StyledAvatarSlot>
-        )}
+        <StyledAvatarSlot>
+          <Avatar
+            src={task.assignee?.avatarUrl}
+            name={assigneeName === '' ? '?' : assigneeName}
+            size="sm"
+            shape="rounded"
+          />
+        </StyledAvatarSlot>
+        <StyledAssigneeSelect
+          value={task.assigneeId ?? ''}
+          title={t`Assignee`}
+          onClick={(event) => event.stopPropagation()}
+          onChange={(event) => saveAssignee(event.target.value)}
+        >
+          <option value="">{t`No assignee`}</option>
+          {members.map((member) => (
+            <option key={member.id} value={member.id}>
+              {[member.name?.firstName, member.name?.lastName]
+                .filter(Boolean)
+                .join(' ')
+                .trim()}
+            </option>
+          ))}
+        </StyledAssigneeSelect>
         <StyledTitleInput
           completed={task.status === 'DONE' || task.status === 'CANCELLED'}
           value={title}
