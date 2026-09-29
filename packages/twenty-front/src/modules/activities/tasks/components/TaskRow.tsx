@@ -5,19 +5,10 @@ import { useState } from 'react';
 import { getActivitySummary } from '@/activities/utils/getActivitySummary';
 
 import { ActivityRow } from '@/activities/components/ActivityRow';
-import { useActivityFieldComponentInstanceId } from '@/activities/hooks/useActivityFieldComponentInstanceId';
 import { useCompleteTask } from '@/activities/tasks/hooks/useCompleteTask';
 import { type Task } from '@/activities/types/Task';
-import { StopPropagationContainer } from '@/object-record/record-board/record-board-card/components/StopPropagationContainer';
-import { RecordFieldsScopeContextProvider } from '@/object-record/record-field-list/contexts/RecordFieldsScopeContext';
-import { FieldContextProvider } from '@/object-record/record-field/ui/components/FieldContextProvider';
-import { useObjectMorphJunctionConfigOrThrow } from '@/object-record/record-field/ui/hooks/useObjectMorphJunctionConfigOrThrow';
-import { RecordFieldComponentInstanceContext } from '@/object-record/record-field/ui/states/contexts/RecordFieldComponentInstanceContext';
-import { RecordInlineCell } from '@/object-record/record-inline-cell/components/RecordInlineCell';
-import { getRecordFieldInputInstanceId } from '@/object-record/utils/getRecordFieldInputId';
 import { TaskComments } from '@/activities/tasks/components/TaskComments';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
-import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { OverflowingTextWithTooltip } from 'twenty-ui/primitives/typography';
 import { Checkbox } from 'twenty-ui/primitives/input';
@@ -97,21 +88,31 @@ const StyledTaskTitle = styled.div<{
   white-space: nowrap;
 `;
 
-const StyledDueDateCell = styled.div`
+const StyledDueDateInput = styled.input<{ isPast: boolean }>`
+  background: transparent;
+  border: 0;
+  color: ${({ isPast }) =>
+    isPast
+      ? themeCssVariables.font.color.danger
+      : themeCssVariables.font.color.tertiary};
+  cursor: pointer;
   flex-shrink: 0;
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.sm};
   margin-right: ${themeCssVariables.spacing[2]};
-  min-width: 96px;
+  outline: none;
+  padding: 2px 4px;
+
+  &:hover {
+    background: ${themeCssVariables.background.transparent.light};
+    border-radius: ${themeCssVariables.border.radius.sm};
+  }
 `;
 
 const StyledRightSideContainer = styled.div`
   align-items: center;
   display: inline-flex;
   max-width: 50%;
-`;
-
-const StyledActivityTargetsContainer = styled.div`
-  overflow: clip;
-  width: 100%;
 `;
 
 const StyledPlaceholder = styled.div`
@@ -131,7 +132,6 @@ const StyledCheckboxContainer = styled.div`
 `;
 
 export const TaskRow = ({ task }: { task: Task }) => {
-  const { openRecordInSidePanel } = useOpenRecordInSidePanel();
   const { updateOneRecord } = useUpdateOneRecord();
   const [title, setTitle] = useState(task.title ?? '');
   const [areCommentsOpen, setAreCommentsOpen] = useState(false);
@@ -160,36 +160,24 @@ export const TaskRow = ({ task }: { task: Task }) => {
 
   const { completeTask } = useCompleteTask(task);
 
-  const junctionFieldName = useObjectMorphJunctionConfigOrThrow({
-    objectNameSingular: CoreObjectNameSingular.Task,
-  }).junctionField.name;
+  // Поле даты берём нативное: инлайн-ячейка Twenty в этой строке открывала
+  // редактор непредсказуемо, а браузерный календарь работает везде одинаково.
+  // Храним дату в UTC-полдень, чтобы смена часового пояса не сдвигала день.
+  const dueDate = task.dueAt ? new Date(task.dueAt).toISOString().slice(0, 10) : '';
 
-  const instanceIdPrefix =
-    useActivityFieldComponentInstanceId('task-row-targets');
-  const componentInstanceId = getRecordFieldInputInstanceId({
-    recordId: task.id,
-    fieldName: junctionFieldName,
-    prefix: instanceIdPrefix,
-  });
-
-  const dueAtInstanceIdPrefix =
-    useActivityFieldComponentInstanceId('task-row-due-at');
-  const dueAtComponentInstanceId = getRecordFieldInputInstanceId({
-    recordId: task.id,
-    fieldName: 'dueAt',
-    prefix: dueAtInstanceIdPrefix,
-  });
+  const saveDueAt = async (value: string) => {
+    await updateOneRecord({
+      objectNameSingular: CoreObjectNameSingular.Task,
+      idToUpdate: task.id,
+      updateOneRecordInput: {
+        dueAt: value === '' ? null : new Date(`${value}T12:00:00Z`).toISOString(),
+      },
+    });
+  };
 
   return (
     <StyledWrapper>
-    <ActivityRow
-      onClick={() => {
-        openRecordInSidePanel({
-          recordId: task.id,
-          objectNameSingular: CoreObjectNameSingular.Task,
-        });
-      }}
-    >
+    <ActivityRow>
       <StyledLeftSideContainer>
         <StyledCheckboxContainer
           onClick={(e) => {
@@ -226,59 +214,14 @@ export const TaskRow = ({ task }: { task: Task }) => {
       </StyledLeftSideContainer>
       <StyledRightSideContainer>
         {assigneeName !== '' && <StyledAssignee>{assigneeName}</StyledAssignee>}
-        <StyledDueDateCell>
-          <FieldContextProvider
-            objectNameSingular={CoreObjectNameSingular.Task}
-            objectRecordId={task.id}
-            fieldMetadataName="dueAt"
-            fieldPosition={0}
-            showLabel={false}
-            isDisplayModeFixHeight
-          >
-            <RecordFieldsScopeContextProvider
-              value={{
-                scopeInstanceId: task.id,
-              }}
-            >
-              <StopPropagationContainer>
-                <RecordFieldComponentInstanceContext.Provider
-                  value={{ instanceId: dueAtComponentInstanceId }}
-                >
-                  <RecordInlineCell
-                    instanceIdPrefix={dueAtInstanceIdPrefix}
-                  />
-                </RecordFieldComponentInstanceContext.Provider>
-              </StopPropagationContainer>
-            </RecordFieldsScopeContextProvider>
-          </FieldContextProvider>
-        </StyledDueDateCell>
-        {
-          <StyledActivityTargetsContainer>
-            <FieldContextProvider
-              objectNameSingular={CoreObjectNameSingular.Task}
-              objectRecordId={task.id}
-              fieldMetadataName={junctionFieldName}
-              fieldPosition={0}
-              showLabel={false}
-              maxWidth={200}
-              isDisplayModeFixHeight
-            >
-              <RecordFieldsScopeContextProvider
-                value={{
-                  scopeInstanceId: task.id,
-                }}
-              >
-                <StopPropagationContainer>
-                  <RecordFieldComponentInstanceContext.Provider
-                    value={{ instanceId: componentInstanceId }}
-                  >
-                    <RecordInlineCell instanceIdPrefix={instanceIdPrefix} />
-                  </RecordFieldComponentInstanceContext.Provider>
-                </StopPropagationContainer>
-              </RecordFieldsScopeContextProvider>
-            </FieldContextProvider>
-          </StyledActivityTargetsContainer>
-        }
+        <StyledDueDateInput
+          type="date"
+          value={dueDate}
+          title={t`Due date`}
+          isPast={dueDate !== '' && new Date(task.dueAt) < new Date() && task.status === 'TODO'}
+          onClick={(event) => event.stopPropagation()}
+          onChange={(event) => saveDueAt(event.target.value)}
+        />
       </StyledRightSideContainer>
     </ActivityRow>
       <StyledCommentsToggle

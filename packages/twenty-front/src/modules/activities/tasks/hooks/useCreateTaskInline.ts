@@ -1,3 +1,4 @@
+import { useAtomValue } from 'jotai';
 import { useCallback } from 'react';
 
 import { type ActivityTargetableObject } from '@/activities/types/ActivityTargetableEntity';
@@ -6,6 +7,7 @@ import { useObjectMorphJunctionConfigOrThrow } from '@/object-record/record-fiel
 import { findTargetFieldInfo } from '@/object-record/record-field/ui/utils/junction/findTargetFieldInfo';
 import { useCreateManyRecords } from '@/object-record/hooks/useCreateManyRecords';
 import { useCreateOneRecord } from '@/object-record/hooks/useCreateOneRecord';
+import { recordStoreFamilyState } from '@/object-record/record-store/states/recordStoreFamilyState';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 
@@ -18,6 +20,10 @@ import { isDefined } from 'twenty-shared/utils';
  *
  * Привязка повторяет ту же схему, что и окно создания: сначала задача,
  * потом запись связи с лидом. Без второго шага задача повиснет ничьей.
+ *
+ * Исполнитель не спрашивается: за задачу по лиду отвечает тот, за кем
+ * закреплён сам лид. Выбирать его вручную — лишний шаг с единственным
+ * правильным ответом.
  */
 export const useCreateTaskInline = (
   targetableObject: ActivityTargetableObject,
@@ -38,6 +44,12 @@ export const useCreateTaskInline = (
     shouldMatchRootQueryFilter: true,
   });
 
+  const targetRecord = useAtomValue(
+    recordStoreFamilyState.atomFamily(targetableObject.id),
+  );
+  const assigneeId =
+    (targetRecord as { ownerId?: string | null } | null)?.ownerId ?? undefined;
+
   const createTask = useCallback(
     async (title: string) => {
       const trimmedTitle = title.trim();
@@ -50,6 +62,7 @@ export const useCreateTaskInline = (
         title: trimmedTitle,
         status: 'TODO',
         position: 'last',
+        ...(isDefined(assigneeId) ? { assigneeId } : {}),
       });
 
       const { junctionObjectMetadata, sourceJoinColumnName } =
@@ -81,6 +94,7 @@ export const useCreateTaskInline = (
       });
     },
     [
+      assigneeId,
       createOneTask,
       createTaskTargets,
       morphJunctionConfig,

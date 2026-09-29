@@ -1,6 +1,6 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { currentWorkspaceMemberState } from '@/auth/states/currentWorkspaceMemberState';
@@ -20,9 +20,12 @@ type Comment = {
   id: string;
   text?: string | null;
   createdAt?: string | null;
-  author?: {
-    name?: { firstName?: string | null; lastName?: string | null } | null;
-  } | null;
+  authorId?: string | null;
+};
+
+type Member = {
+  id: string;
+  name?: { firstName?: string | null; lastName?: string | null } | null;
 };
 
 const StyledBlock = styled.div`
@@ -67,11 +70,11 @@ const StyledInput = styled.input`
   }
 `;
 
-const authorName = (comment: Comment) =>
-  [comment.author?.name?.firstName, comment.author?.name?.lastName]
+const fullName = (member?: Member) =>
+  [member?.name?.firstName, member?.name?.lastName]
     .filter(Boolean)
     .join(' ')
-    .trim() || t`Someone`;
+    .trim();
 
 const when = (value?: string | null) =>
   value === null || value === undefined
@@ -86,6 +89,18 @@ const when = (value?: string | null) =>
 export const TaskComments = ({ taskId }: { taskId: string }) => {
   const [draft, setDraft] = useState('');
   const currentWorkspaceMember = useAtomStateValue(currentWorkspaceMemberState);
+
+  // Имя автора берём из справочника, а не из связи комментария: связанную
+  // запись запрос не возвращает, и подпись выходила пустой.
+  const { records: members } = useFindManyRecords<Member>({
+    objectNameSingular: 'workspaceMember',
+    limit: 200,
+  });
+
+  const nameById = useMemo(
+    () => new Map(members.map((member) => [member.id, fullName(member)])),
+    [members],
+  );
 
   const { records: comments } = useFindManyRecords<Comment>({
     objectNameSingular: 'taskComment',
@@ -119,7 +134,9 @@ export const TaskComments = ({ taskId }: { taskId: string }) => {
       {comments.map((comment) => (
         <StyledComment key={comment.id}>
           <StyledMeta>
-            {authorName(comment)} · {when(comment.createdAt)}
+            {(comment.authorId ? nameById.get(comment.authorId) : '') ||
+              t`Someone`}{' '}
+            · {when(comment.createdAt)}
           </StyledMeta>
           <StyledText>{comment.text}</StyledText>
         </StyledComment>
