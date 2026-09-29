@@ -41,5 +41,6 @@ export const createOneActivityOperationSignatureFactory: RecordGqlOperationSigna
           title: true,
           status: true,
           dueAt: true,
+          scheduledAt: true,
         },
       };

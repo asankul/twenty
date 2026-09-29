@@ -3,6 +3,7 @@ import { t } from '@lingui/core/macro';
 import { useState } from 'react';
 
 import { getActivitySummary } from '@/activities/utils/getActivitySummary';
+import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 
 import { ActivityRow } from '@/activities/components/ActivityRow';
 import { useCompleteTask } from '@/activities/tasks/hooks/useCompleteTask';
@@ -10,8 +11,11 @@ import { type Task } from '@/activities/types/Task';
 import { TaskComments } from '@/activities/tasks/components/TaskComments';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
+import { isDefined } from 'twenty-shared/utils';
 import { OverflowingTextWithTooltip } from 'twenty-ui/primitives/typography';
+import { Avatar } from 'twenty-ui/primitives/data-display';
 import { Checkbox } from 'twenty-ui/primitives/input';
+import { IconCalendarEvent, IconFlag, IconX } from 'twenty-ui/icon';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 const StyledTaskBody = styled.div`
@@ -88,6 +92,50 @@ const StyledTaskTitle = styled.div<{
   white-space: nowrap;
 `;
 
+const StyledDateCell = styled.label<{ isOverdue: boolean }>`
+  align-items: center;
+  border-radius: ${themeCssVariables.border.radius.sm};
+  color: ${({ isOverdue }) =>
+    isOverdue
+      ? themeCssVariables.font.color.danger
+      : themeCssVariables.font.color.tertiary};
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: ${themeCssVariables.spacing[1]};
+  margin-right: ${themeCssVariables.spacing[2]};
+  padding: 2px 4px;
+
+  &:hover {
+    background: ${themeCssVariables.background.transparent.light};
+  }
+`;
+
+const StyledCancelButton = styled.button`
+  background: transparent;
+  border: 0;
+  border-radius: ${themeCssVariables.border.radius.sm};
+  color: ${themeCssVariables.font.color.light};
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  opacity: 0.35;
+  padding: 2px;
+  transition: opacity calc(${themeCssVariables.animation.duration.fast} * 1s) ease;
+
+  &:hover {
+    background: ${themeCssVariables.background.transparent.light};
+    color: ${themeCssVariables.font.color.secondary};
+    opacity: 1;
+  }
+`;
+
+const StyledAvatarSlot = styled.span`
+  display: flex;
+  flex-shrink: 0;
+  margin-left: ${themeCssVariables.spacing[2]};
+`;
+
 const StyledDueDateInput = styled.input<{ isPast: boolean }>`
   background: transparent;
   border: 0;
@@ -160,20 +208,46 @@ export const TaskRow = ({ task }: { task: Task }) => {
 
   const { completeTask } = useCompleteTask(task);
 
-  // Поле даты берём нативное: инлайн-ячейка Twenty в этой строке открывала
-  // редактор непредсказуемо, а браузерный календарь работает везде одинаково.
-  // Храним дату в UTC-полдень, чтобы смена часового пояса не сдвигала день.
-  const dueDate = task.dueAt ? new Date(task.dueAt).toISOString().slice(0, 10) : '';
+  // Две даты, как в Craft: «когда делать» и «дедлайн». Красным помечается
+  // только просроченный дедлайн — пропущенный день начала просрочкой не
+  // считается, задача просто переезжает дальше.
+  //
+  // Поля нативные: инлайн-ячейка Twenty в этой строке открывала редактор
+  // непредсказуемо, а браузерный календарь работает везде одинаково.
+  // Дата хранится в UTC-полдень, чтобы часовой пояс не сдвигал день.
+  const asInputValue = (value?: string | null) =>
+    value ? new Date(value).toISOString().slice(0, 10) : '';
 
-  const saveDueAt = async (value: string) => {
+  const saveDate = async (field: 'dueAt' | 'scheduledAt', value: string) => {
     await updateOneRecord({
       objectNameSingular: CoreObjectNameSingular.Task,
       idToUpdate: task.id,
       updateOneRecordInput: {
-        dueAt: value === '' ? null : new Date(`${value}T12:00:00Z`).toISOString(),
+        [field]:
+          value === '' ? null : new Date(`${value}T12:00:00Z`).toISOString(),
       },
     });
   };
+
+  const isOpen = task.status !== 'DONE' && task.status !== 'CANCELLED';
+  const isOverdue =
+    isDefined(task.dueAt) && new Date(task.dueAt) < new Date() && isOpen;
+
+  const cancelTask = async () => {
+    await updateOneRecord({
+      objectNameSingular: CoreObjectNameSingular.Task,
+      idToUpdate: task.id,
+      updateOneRecordInput: { status: 'CANCELLED' },
+    });
+  };
+
+  // Счётчик берём отдельным запросом с limit 0: нужна только цифра,
+  // сами комментарии грузятся, лишь когда ленту разворачивают.
+  const { totalCount: commentCount } = useFindManyRecords({
+    objectNameSingular: 'taskComment',
+    filter: { taskId: { eq: task.id } },
+    limit: 1,
+  });
 
   return (
     <StyledWrapper>
@@ -190,8 +264,18 @@ export const TaskRow = ({ task }: { task: Task }) => {
             onCheckedChange={completeTask}
           />
         </StyledCheckboxContainer>
+        {isDefined(task.assignee) && (
+          <StyledAvatarSlot>
+            <Avatar
+              src={task.assignee.avatarUrl}
+              name={assigneeName}
+              size="sm"
+              shape="rounded"
+            />
+          </StyledAvatarSlot>
+        )}
         <StyledTitleInput
-          completed={task.status === 'DONE'}
+          completed={task.status === 'DONE' || task.status === 'CANCELLED'}
           value={title}
           placeholder={t`Task title`}
           onClick={(event) => event.stopPropagation()}
@@ -213,15 +297,36 @@ export const TaskRow = ({ task }: { task: Task }) => {
         </StyledTaskBody>
       </StyledLeftSideContainer>
       <StyledRightSideContainer>
-        {assigneeName !== '' && <StyledAssignee>{assigneeName}</StyledAssignee>}
-        <StyledDueDateInput
-          type="date"
-          value={dueDate}
-          title={t`Due date`}
-          isPast={dueDate !== '' && new Date(task.dueAt) < new Date() && task.status === 'TODO'}
-          onClick={(event) => event.stopPropagation()}
-          onChange={(event) => saveDueAt(event.target.value)}
-        />
+        <StyledDateCell isOverdue={false} title={t`When to start`}>
+          <IconCalendarEvent size={14} />
+          <StyledDueDateInput
+            type="date"
+            isPast={false}
+            value={asInputValue(task.scheduledAt)}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => saveDate('scheduledAt', event.target.value)}
+          />
+        </StyledDateCell>
+        <StyledDateCell isOverdue={isOverdue} title={t`Deadline`}>
+          <IconFlag size={14} />
+          <StyledDueDateInput
+            type="date"
+            isPast={isOverdue}
+            value={asInputValue(task.dueAt)}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => saveDate('dueAt', event.target.value)}
+          />
+        </StyledDateCell>
+        <StyledCancelButton
+          type="button"
+          title={t`Mark as cancelled`}
+          onClick={(event) => {
+            event.stopPropagation();
+            cancelTask();
+          }}
+        >
+          <IconX size={14} />
+        </StyledCancelButton>
       </StyledRightSideContainer>
     </ActivityRow>
       <StyledCommentsToggle
@@ -230,7 +335,11 @@ export const TaskRow = ({ task }: { task: Task }) => {
           setAreCommentsOpen(!areCommentsOpen);
         }}
       >
-        {areCommentsOpen ? t`Hide comments` : t`Comments`}
+        {areCommentsOpen
+          ? t`Hide comments`
+          : commentCount === undefined || commentCount === 0
+            ? t`Comments`
+            : t`Comments (${commentCount})`}
       </StyledCommentsToggle>
       {areCommentsOpen && <TaskComments taskId={task.id} />}
     </StyledWrapper>
