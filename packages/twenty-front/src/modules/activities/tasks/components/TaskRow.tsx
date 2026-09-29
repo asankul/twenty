@@ -188,14 +188,21 @@ type TaskDateProps = {
   value?: string | null;
   isOverdue: boolean;
   label: string;
+  prefix: string;
   icon: ReactNode;
   onChange: (value: string) => void;
 };
 
+/**
+ * Дата с коротким словом перед ней. Один значок различают только те, кто уже
+ * знает разницу между сроком начала и дедлайном; людям, которые видят систему
+ * впервые, нужна подпись.
+ */
 const TaskDate = ({
   value,
   isOverdue,
   label,
+  prefix,
   icon,
   onChange,
 }: TaskDateProps) => {
@@ -229,6 +236,7 @@ const TaskDate = ({
       }}
     >
       {icon}
+      {prefix}
       {isSet
         ? new Date(value as string).toLocaleDateString('ru-RU', {
             day: 'numeric',
