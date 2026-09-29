@@ -33,10 +33,22 @@ const StyledWrapper = styled.div`
   width: 100%;
 `;
 
+// Задачи открывают и в боковой панели, и на всю ширину. В панели правый край
+// упирался в границу и дедлайн обрезало, поэтому строка переносится: даты
+// уходят под название, а не выдавливают его до трёх букв.
+const StyledInner = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${themeCssVariables.spacing[1]};
+  justify-content: space-between;
+  min-width: 0;
+  width: 100%;
+`;
+
 const StyledLeftSide = styled.div`
   align-items: center;
   display: flex;
-  flex: 1;
+  flex: 1 1 220px;
   gap: ${themeCssVariables.spacing[2]};
   min-width: 0;
 `;
@@ -278,88 +290,92 @@ export const TaskRow = ({ task }: { task: Task }) => {
   return (
     <StyledWrapper>
       <ActivityRow>
-        <StyledLeftSide>
-          <StyledCheckboxSlot onClick={(event) => event.stopPropagation()}>
-            <Checkbox
-              checked={task.status === 'DONE'}
-              shape="round"
-              onCheckedChange={completeTask}
-            />
-          </StyledCheckboxSlot>
+        <StyledInner>
+          <StyledLeftSide>
+            <StyledCheckboxSlot onClick={(event) => event.stopPropagation()}>
+              <Checkbox
+                checked={task.status === 'DONE'}
+                shape="round"
+                onCheckedChange={completeTask}
+              />
+            </StyledCheckboxSlot>
 
-          <StyledAssigneeSlot title={assigneeName || t`No assignee`}>
-            <Avatar
-              src={task.assignee?.avatarUrl}
-              name={assigneeName === '' ? '?' : assigneeName}
-              size="sm"
-              shape="rounded"
-            />
-            <StyledAssigneeSelect
-              value={task.assigneeId ?? ''}
-              aria-label={t`Assignee`}
+            <StyledAssigneeSlot title={assigneeName || t`No assignee`}>
+              <Avatar
+                src={task.assignee?.avatarUrl}
+                name={assigneeName === '' ? '?' : assigneeName}
+                size="sm"
+                shape="rounded"
+              />
+              <StyledAssigneeSelect
+                value={task.assigneeId ?? ''}
+                aria-label={t`Assignee`}
+                onClick={(event) => event.stopPropagation()}
+                onChange={(event) =>
+                  update({
+                    assigneeId:
+                      event.target.value === '' ? null : event.target.value,
+                  })
+                }
+              >
+                <option value="">{t`No assignee`}</option>
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {fullName(member)}
+                  </option>
+                ))}
+              </StyledAssigneeSelect>
+            </StyledAssigneeSlot>
+
+            <StyledTitleInput
+              isClosed={isClosed}
+              value={title}
+              placeholder={t`Task title`}
               onClick={(event) => event.stopPropagation()}
-              onChange={(event) =>
-                update({
-                  assigneeId:
-                    event.target.value === '' ? null : event.target.value,
-                })
+              onChange={(event) => setTitle(event.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.currentTarget.blur();
+                }
+
+                if (event.key === 'Escape') {
+                  setTitle(task.title ?? '');
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+          </StyledLeftSide>
+
+          <StyledRightSide>
+            <TaskDate
+              value={task.scheduledAt}
+              isOverdue={false}
+              label={t`When to start`}
+              icon={<IconCalendarEvent size={14} />}
+              onChange={(value) =>
+                update({ scheduledAt: toStoredValue(value) })
               }
+            />
+            <TaskDate
+              value={task.dueAt}
+              isOverdue={isOverdue}
+              label={t`Deadline`}
+              icon={<IconFlag size={14} />}
+              onChange={(value) => update({ dueAt: toStoredValue(value) })}
+            />
+            <StyledCancelButton
+              type="button"
+              title={t`Mark as cancelled`}
+              onClick={(event) => {
+                event.stopPropagation();
+                update({ status: 'CANCELLED' });
+              }}
             >
-              <option value="">{t`No assignee`}</option>
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {fullName(member)}
-                </option>
-              ))}
-            </StyledAssigneeSelect>
-          </StyledAssigneeSlot>
-
-          <StyledTitleInput
-            isClosed={isClosed}
-            value={title}
-            placeholder={t`Task title`}
-            onClick={(event) => event.stopPropagation()}
-            onChange={(event) => setTitle(event.target.value)}
-            onBlur={saveTitle}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.currentTarget.blur();
-              }
-
-              if (event.key === 'Escape') {
-                setTitle(task.title ?? '');
-                event.currentTarget.blur();
-              }
-            }}
-          />
-        </StyledLeftSide>
-
-        <StyledRightSide>
-          <TaskDate
-            value={task.scheduledAt}
-            isOverdue={false}
-            label={t`When to start`}
-            icon={<IconCalendarEvent size={14} />}
-            onChange={(value) => update({ scheduledAt: toStoredValue(value) })}
-          />
-          <TaskDate
-            value={task.dueAt}
-            isOverdue={isOverdue}
-            label={t`Deadline`}
-            icon={<IconFlag size={14} />}
-            onChange={(value) => update({ dueAt: toStoredValue(value) })}
-          />
-          <StyledCancelButton
-            type="button"
-            title={t`Mark as cancelled`}
-            onClick={(event) => {
-              event.stopPropagation();
-              update({ status: 'CANCELLED' });
-            }}
-          >
-            <IconX size={14} />
-          </StyledCancelButton>
-        </StyledRightSide>
+              <IconX size={14} />
+            </StyledCancelButton>
+          </StyledRightSide>
+        </StyledInner>
       </ActivityRow>
 
       <StyledCommentsToggle
