@@ -1,35 +1,77 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
-import { useState } from 'react';
-
-import { getActivitySummary } from '@/activities/utils/getActivitySummary';
-import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
+import { type ReactNode, useRef, useState } from 'react';
 
 import { ActivityRow } from '@/activities/components/ActivityRow';
+import { TaskComments } from '@/activities/tasks/components/TaskComments';
 import { useCompleteTask } from '@/activities/tasks/hooks/useCompleteTask';
 import { type Task } from '@/activities/types/Task';
-import { TaskComments } from '@/activities/tasks/components/TaskComments';
+import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
-import { OverflowingTextWithTooltip } from 'twenty-ui/primitives/typography';
+import { IconCalendarEvent, IconFlag, IconX } from 'twenty-ui/icon';
 import { Avatar } from 'twenty-ui/primitives/data-display';
 import { Checkbox } from 'twenty-ui/primitives/input';
-import { IconCalendarEvent, IconFlag, IconX } from 'twenty-ui/icon';
 import { themeCssVariables } from 'twenty-ui/theme';
 
-const StyledTaskBody = styled.div`
-  color: ${themeCssVariables.font.color.tertiary};
+/**
+ * Строка задачи в карточке лида.
+ *
+ * Правится целиком на месте: название, две даты, исполнитель, отмена.
+ * Открывать отдельную карточку ради смены срока — лишние действия там,
+ * где хватает одного.
+ *
+ * Дат две, как в Craft: «когда делать» и «дедлайн». Красным помечается только
+ * просроченный дедлайн — пропущенный день начала просрочкой не считается,
+ * задача просто переезжает дальше.
+ */
+
+const StyledWrapper = styled.div`
   display: flex;
-  max-width: calc(80% - ${themeCssVariables.spacing[2]});
-  overflow: hidden;
-  padding-bottom: 1px;
-  text-overflow: ellipsis;
+  flex-direction: column;
+  width: 100%;
 `;
 
-const StyledTitleInput = styled.input<{
-  completed: boolean;
-}>`
+const StyledLeftSide = styled.div`
+  align-items: center;
+  display: flex;
+  flex: 1;
+  gap: ${themeCssVariables.spacing[2]};
+  min-width: 0;
+`;
+
+const StyledRightSide = styled.div`
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: ${themeCssVariables.spacing[1]};
+`;
+
+const StyledCheckboxSlot = styled.div`
+  display: flex;
+  flex-shrink: 0;
+`;
+
+// Прозрачный список поверх аватара: сам аватар и есть кнопка выбора,
+// отдельное поле рядом отнимало бы ширину у названия.
+const StyledAssigneeSlot = styled.div`
+  display: flex;
+  flex-shrink: 0;
+  position: relative;
+`;
+
+const StyledAssigneeSelect = styled.select`
+  cursor: pointer;
+  height: 100%;
+  left: 0;
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+`;
+
+const StyledTitleInput = styled.input<{ isClosed: boolean }>`
   background: transparent;
   border: 0;
   color: ${themeCssVariables.font.color.primary};
@@ -39,14 +81,62 @@ const StyledTitleInput = styled.input<{
   font-weight: ${themeCssVariables.font.weight.medium};
   min-width: 0;
   outline: none;
-  padding: 0 ${themeCssVariables.spacing[2]};
-  text-decoration: ${({ completed }) => (completed ? 'line-through' : 'none')};
+  padding: 0;
+  text-decoration: ${({ isClosed }) => (isClosed ? 'line-through' : 'none')};
 `;
 
-const StyledWrapper = styled.div`
+// Пустое поле даты браузер рисует как «dd/mm/yyyy» и занимает им полстроки,
+// поэтому само поле прячем, а нажимают по значку с подписью.
+const StyledDateButton = styled.button<{ isOverdue: boolean; isSet: boolean }>`
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: ${themeCssVariables.border.radius.sm};
+  color: ${({ isOverdue, isSet }) =>
+    isOverdue
+      ? themeCssVariables.font.color.danger
+      : isSet
+        ? themeCssVariables.font.color.secondary
+        : themeCssVariables.font.color.light};
+  cursor: pointer;
+  display: inline-flex;
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.xs};
+  gap: ${themeCssVariables.spacing[1]};
+  padding: 2px 4px;
+  position: relative;
+  white-space: nowrap;
+
+  &:hover {
+    background: ${themeCssVariables.background.transparent.light};
+  }
+`;
+
+const StyledHiddenDateInput = styled.input`
+  height: 0;
+  left: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 100%;
+  width: 0;
+`;
+
+const StyledCancelButton = styled.button`
+  background: transparent;
+  border: 0;
+  border-radius: ${themeCssVariables.border.radius.sm};
+  color: ${themeCssVariables.font.color.light};
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
-  width: 100%;
+  opacity: 0.4;
+  padding: 2px;
+
+  &:hover {
+    background: ${themeCssVariables.background.transparent.light};
+    color: ${themeCssVariables.font.color.secondary};
+    opacity: 1;
+  }
 `;
 
 const StyledCommentsToggle = styled.button`
@@ -64,309 +154,214 @@ const StyledCommentsToggle = styled.button`
   }
 `;
 
-const StyledTaskTitle = styled.div<{
-  completed: boolean;
-}>`
-  align-items: center;
-  color: ${themeCssVariables.font.color.primary};
-  font-weight: ${themeCssVariables.font.weight.medium};
-  overflow: hidden;
-  padding: 0 ${themeCssVariables.spacing[2]};
-  padding-bottom: 1px;
-  text-decoration: ${({ completed }) => (completed ? 'line-through' : 'none')};
-  text-overflow: ellipsis;
+type Member = {
+  id: string;
+  name?: { firstName?: string | null; lastName?: string | null } | null;
+};
 
-  white-space: nowrap;
-`;
+const fullName = (member?: Member | Task['assignee']) =>
+  [member?.name?.firstName, member?.name?.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
 
-const StyledDateCell = styled.label<{ isOverdue: boolean }>`
-  align-items: center;
-  border-radius: ${themeCssVariables.border.radius.sm};
-  color: ${({ isOverdue }) =>
-    isOverdue
-      ? themeCssVariables.font.color.danger
-      : themeCssVariables.font.color.tertiary};
-  cursor: pointer;
-  display: inline-flex;
-  flex-shrink: 0;
-  gap: ${themeCssVariables.spacing[1]};
-  margin-right: ${themeCssVariables.spacing[2]};
-  padding: 2px 4px;
+// Дата хранится в UTC-полдень: иначе часовой пояс сдвигает день.
+const toInputValue = (value?: string | null) =>
+  value ? new Date(value).toISOString().slice(0, 10) : '';
 
-  &:hover {
-    background: ${themeCssVariables.background.transparent.light};
-  }
-`;
+const toStoredValue = (value: string) =>
+  value === '' ? null : new Date(`${value}T12:00:00Z`).toISOString();
 
-const StyledCancelButton = styled.button`
-  background: transparent;
-  border: 0;
-  border-radius: ${themeCssVariables.border.radius.sm};
-  color: ${themeCssVariables.font.color.light};
-  cursor: pointer;
-  display: flex;
-  flex-shrink: 0;
-  opacity: 0.35;
-  padding: 2px;
-  transition: opacity calc(${themeCssVariables.animation.duration.fast} * 1s) ease;
+type TaskDateProps = {
+  value?: string | null;
+  isOverdue: boolean;
+  label: string;
+  icon: ReactNode;
+  onChange: (value: string) => void;
+};
 
-  &:hover {
-    background: ${themeCssVariables.background.transparent.light};
-    color: ${themeCssVariables.font.color.secondary};
-    opacity: 1;
-  }
-`;
+const TaskDate = ({
+  value,
+  isOverdue,
+  label,
+  icon,
+  onChange,
+}: TaskDateProps) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isSet = isDefined(value) && value !== '';
 
-const StyledAssigneeSelect = styled.select`
-  background: transparent;
-  border: 0;
-  border-radius: ${themeCssVariables.border.radius.sm};
-  color: ${themeCssVariables.font.color.secondary};
-  cursor: pointer;
-  flex-shrink: 0;
-  font-family: inherit;
-  font-size: ${themeCssVariables.font.size.xs};
-  margin-left: ${themeCssVariables.spacing[1]};
-  max-width: 140px;
-  outline: none;
-  padding: 2px 4px;
+  const openPicker = () => {
+    const input = inputRef.current;
 
-  &:hover {
-    background: ${themeCssVariables.background.transparent.light};
-  }
-`;
+    if (!isDefined(input)) {
+      return;
+    }
 
-const StyledAvatarSlot = styled.span`
-  display: flex;
-  flex-shrink: 0;
-  margin-left: ${themeCssVariables.spacing[2]};
-`;
+    // showPicker есть не везде; там остаётся обычный фокус.
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+    } else {
+      input.focus();
+    }
+  };
 
-const StyledDueDateInput = styled.input<{ isPast: boolean }>`
-  background: transparent;
-  border: 0;
-  color: ${({ isPast }) =>
-    isPast
-      ? themeCssVariables.font.color.danger
-      : themeCssVariables.font.color.tertiary};
-  cursor: pointer;
-  flex-shrink: 0;
-  font-family: inherit;
-  font-size: ${themeCssVariables.font.size.sm};
-  margin-right: ${themeCssVariables.spacing[2]};
-  outline: none;
-  padding: 2px 4px;
-
-  &:hover {
-    background: ${themeCssVariables.background.transparent.light};
-    border-radius: ${themeCssVariables.border.radius.sm};
-  }
-`;
-
-const StyledRightSideContainer = styled.div`
-  align-items: center;
-  display: inline-flex;
-  max-width: 50%;
-`;
-
-const StyledPlaceholder = styled.div`
-  color: ${themeCssVariables.font.color.light};
-`;
-
-const StyledLeftSideContainer = styled.div`
-  align-items: center;
-  display: inline-flex;
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-`;
-
-const StyledCheckboxContainer = styled.div`
-  display: flex;
-`;
+  return (
+    <StyledDateButton
+      type="button"
+      isOverdue={isOverdue}
+      isSet={isSet}
+      title={label}
+      onClick={(event) => {
+        event.stopPropagation();
+        openPicker();
+      }}
+    >
+      {icon}
+      {isSet
+        ? new Date(value as string).toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'short',
+          })
+        : null}
+      <StyledHiddenDateInput
+        ref={inputRef}
+        type="date"
+        value={toInputValue(value)}
+        onClick={(event) => event.stopPropagation()}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </StyledDateButton>
+  );
+};
 
 export const TaskRow = ({ task }: { task: Task }) => {
   const { updateOneRecord } = useUpdateOneRecord();
   const [title, setTitle] = useState(task.title ?? '');
   const [areCommentsOpen, setAreCommentsOpen] = useState(false);
 
-  const saveTitle = async () => {
-    if (title === (task.title ?? '')) {
-      return;
-    }
-
-    await updateOneRecord({
-      objectNameSingular: CoreObjectNameSingular.Task,
-      idToUpdate: task.id,
-      updateOneRecordInput: { title },
-    });
-  };
-
-  const assigneeName = [
-    task.assignee?.name?.firstName,
-    task.assignee?.name?.lastName,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .trim();
-
-  const body = getActivitySummary(task?.bodyV2?.blocknote ?? null);
+  const isClosed = task.status === 'DONE' || task.status === 'CANCELLED';
+  const isOverdue =
+    isDefined(task.dueAt) && new Date(task.dueAt) < new Date() && !isClosed;
 
   const { completeTask } = useCompleteTask(task);
 
-  // Две даты, как в Craft: «когда делать» и «дедлайн». Красным помечается
-  // только просроченный дедлайн — пропущенный день начала просрочкой не
-  // считается, задача просто переезжает дальше.
-  //
-  // Поля нативные: инлайн-ячейка Twenty в этой строке открывала редактор
-  // непредсказуемо, а браузерный календарь работает везде одинаково.
-  // Дата хранится в UTC-полдень, чтобы часовой пояс не сдвигал день.
-  const asInputValue = (value?: string | null) =>
-    value ? new Date(value).toISOString().slice(0, 10) : '';
-
-  const saveDate = async (field: 'dueAt' | 'scheduledAt', value: string) => {
-    await updateOneRecord({
+  const update = (input: Record<string, unknown>) =>
+    updateOneRecord({
       objectNameSingular: CoreObjectNameSingular.Task,
       idToUpdate: task.id,
-      updateOneRecordInput: {
-        [field]:
-          value === '' ? null : new Date(`${value}T12:00:00Z`).toISOString(),
-      },
+      updateOneRecordInput: input,
     });
+
+  const saveTitle = async () => {
+    if (title !== (task.title ?? '')) {
+      await update({ title });
+    }
   };
 
-  const isOpen = task.status !== 'DONE' && task.status !== 'CANCELLED';
-  const isOverdue =
-    isDefined(task.dueAt) && new Date(task.dueAt) < new Date() && isOpen;
-
-  const cancelTask = async () => {
-    await updateOneRecord({
-      objectNameSingular: CoreObjectNameSingular.Task,
-      idToUpdate: task.id,
-      updateOneRecordInput: { status: 'CANCELLED' },
-    });
-  };
-
-  // Список для передачи задачи. Права уже ограничивают выдачу: старший
-  // брокер получит свою команду и безкомандных, чужих в списке не будет.
-  const { records: members } = useFindManyRecords<{
-    id: string;
-    name?: { firstName?: string | null; lastName?: string | null } | null;
-  }>({
+  // Права уже сужают выдачу: старший брокер получит свою команду
+  // и безкомандных, чужих в списке не будет.
+  const { records: members } = useFindManyRecords<Member>({
     objectNameSingular: 'workspaceMember',
     limit: 200,
   });
 
-  const saveAssignee = async (value: string) => {
-    await updateOneRecord({
-      objectNameSingular: CoreObjectNameSingular.Task,
-      idToUpdate: task.id,
-      updateOneRecordInput: { assigneeId: value === '' ? null : value },
-    });
-  };
-
-  // Счётчик берём отдельным запросом с limit 0: нужна только цифра,
-  // сами комментарии грузятся, лишь когда ленту разворачивают.
+  // Нужна только цифра, поэтому берём totalCount: сами комментарии
+  // грузятся, лишь когда ленту разворачивают.
   const { totalCount: commentCount } = useFindManyRecords({
     objectNameSingular: 'taskComment',
     filter: { taskId: { eq: task.id } },
     limit: 1,
   });
 
+  const assigneeName = fullName(task.assignee);
+
   return (
     <StyledWrapper>
-    <ActivityRow>
-      <StyledLeftSideContainer>
-        <StyledCheckboxContainer
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-        >
-          <Checkbox
-            checked={task.status === 'DONE'}
-            shape={'round'}
-            onCheckedChange={completeTask}
-          />
-        </StyledCheckboxContainer>
-        <StyledAvatarSlot>
-          <Avatar
-            src={task.assignee?.avatarUrl}
-            name={assigneeName === '' ? '?' : assigneeName}
-            size="sm"
-            shape="rounded"
-          />
-        </StyledAvatarSlot>
-        <StyledAssigneeSelect
-          value={task.assigneeId ?? ''}
-          title={t`Assignee`}
-          onClick={(event) => event.stopPropagation()}
-          onChange={(event) => saveAssignee(event.target.value)}
-        >
-          <option value="">{t`No assignee`}</option>
-          {members.map((member) => (
-            <option key={member.id} value={member.id}>
-              {[member.name?.firstName, member.name?.lastName]
-                .filter(Boolean)
-                .join(' ')
-                .trim()}
-            </option>
-          ))}
-        </StyledAssigneeSelect>
-        <StyledTitleInput
-          completed={task.status === 'DONE' || task.status === 'CANCELLED'}
-          value={title}
-          placeholder={t`Task title`}
-          onClick={(event) => event.stopPropagation()}
-          onChange={(event) => setTitle(event.target.value)}
-          onBlur={saveTitle}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.currentTarget.blur();
-            }
+      <ActivityRow>
+        <StyledLeftSide>
+          <StyledCheckboxSlot onClick={(event) => event.stopPropagation()}>
+            <Checkbox
+              checked={task.status === 'DONE'}
+              shape="round"
+              onCheckedChange={completeTask}
+            />
+          </StyledCheckboxSlot>
 
-            if (event.key === 'Escape') {
-              setTitle(task.title ?? '');
-              event.currentTarget.blur();
-            }
-          }}
-        />
-        <StyledTaskBody>
-          <OverflowingTextWithTooltip text={body} />
-        </StyledTaskBody>
-      </StyledLeftSideContainer>
-      <StyledRightSideContainer>
-        <StyledDateCell isOverdue={false} title={t`When to start`}>
-          <IconCalendarEvent size={14} />
-          <StyledDueDateInput
-            type="date"
-            isPast={false}
-            value={asInputValue(task.scheduledAt)}
+          <StyledAssigneeSlot title={assigneeName || t`No assignee`}>
+            <Avatar
+              src={task.assignee?.avatarUrl}
+              name={assigneeName === '' ? '?' : assigneeName}
+              size="sm"
+              shape="rounded"
+            />
+            <StyledAssigneeSelect
+              value={task.assigneeId ?? ''}
+              aria-label={t`Assignee`}
+              onClick={(event) => event.stopPropagation()}
+              onChange={(event) =>
+                update({
+                  assigneeId:
+                    event.target.value === '' ? null : event.target.value,
+                })
+              }
+            >
+              <option value="">{t`No assignee`}</option>
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {fullName(member)}
+                </option>
+              ))}
+            </StyledAssigneeSelect>
+          </StyledAssigneeSlot>
+
+          <StyledTitleInput
+            isClosed={isClosed}
+            value={title}
+            placeholder={t`Task title`}
             onClick={(event) => event.stopPropagation()}
-            onChange={(event) => saveDate('scheduledAt', event.target.value)}
+            onChange={(event) => setTitle(event.target.value)}
+            onBlur={saveTitle}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.currentTarget.blur();
+              }
+
+              if (event.key === 'Escape') {
+                setTitle(task.title ?? '');
+                event.currentTarget.blur();
+              }
+            }}
           />
-        </StyledDateCell>
-        <StyledDateCell isOverdue={isOverdue} title={t`Deadline`}>
-          <IconFlag size={14} />
-          <StyledDueDateInput
-            type="date"
-            isPast={isOverdue}
-            value={asInputValue(task.dueAt)}
-            onClick={(event) => event.stopPropagation()}
-            onChange={(event) => saveDate('dueAt', event.target.value)}
+        </StyledLeftSide>
+
+        <StyledRightSide>
+          <TaskDate
+            value={task.scheduledAt}
+            isOverdue={false}
+            label={t`When to start`}
+            icon={<IconCalendarEvent size={14} />}
+            onChange={(value) => update({ scheduledAt: toStoredValue(value) })}
           />
-        </StyledDateCell>
-        <StyledCancelButton
-          type="button"
-          title={t`Mark as cancelled`}
-          onClick={(event) => {
-            event.stopPropagation();
-            cancelTask();
-          }}
-        >
-          <IconX size={14} />
-        </StyledCancelButton>
-      </StyledRightSideContainer>
-    </ActivityRow>
+          <TaskDate
+            value={task.dueAt}
+            isOverdue={isOverdue}
+            label={t`Deadline`}
+            icon={<IconFlag size={14} />}
+            onChange={(value) => update({ dueAt: toStoredValue(value) })}
+          />
+          <StyledCancelButton
+            type="button"
+            title={t`Mark as cancelled`}
+            onClick={(event) => {
+              event.stopPropagation();
+              update({ status: 'CANCELLED' });
+            }}
+          >
+            <IconX size={14} />
+          </StyledCancelButton>
+        </StyledRightSide>
+      </ActivityRow>
+
       <StyledCommentsToggle
         onClick={(event) => {
           event.stopPropagation();
@@ -375,9 +370,9 @@ export const TaskRow = ({ task }: { task: Task }) => {
       >
         {areCommentsOpen
           ? t`Hide comments`
-          : commentCount === undefined || commentCount === 0
-            ? t`Comments`
-            : t`Comments (${commentCount})`}
+          : isDefined(commentCount) && commentCount > 0
+            ? t`Comments (${commentCount})`
+            : t`Comments`}
       </StyledCommentsToggle>
       {areCommentsOpen && <TaskComments taskId={task.id} />}
     </StyledWrapper>
