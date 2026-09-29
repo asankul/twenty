@@ -10,7 +10,12 @@ import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
-import { IconCalendarEvent, IconFlag, IconX } from 'twenty-ui/icon';
+import {
+  IconCalendarEvent,
+  IconFlag,
+  IconMessageCircle,
+  IconX,
+} from 'twenty-ui/icon';
 import { Avatar } from 'twenty-ui/primitives/data-display';
 import { Checkbox } from 'twenty-ui/primitives/input';
 import { themeCssVariables } from 'twenty-ui/theme';
@@ -51,13 +56,6 @@ const StyledLeftSide = styled.div`
   flex: 1 1 220px;
   gap: ${themeCssVariables.spacing[2]};
   min-width: 0;
-`;
-
-const StyledRightSide = styled.div`
-  align-items: center;
-  display: flex;
-  flex-shrink: 0;
-  gap: ${themeCssVariables.spacing[1]};
 `;
 
 const StyledCheckboxSlot = styled.div`
@@ -151,6 +149,20 @@ const StyledCancelButton = styled.button`
   }
 `;
 
+// Даты и комментарии живут строкой ниже: в одну строку с названием они
+// отнимали у него ширину, и в боковой панели название сжималось до трёх букв.
+const StyledMetaRow = styled.div`
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${themeCssVariables.spacing[1]};
+  padding: 0 0 ${themeCssVariables.spacing[1]} ${themeCssVariables.spacing[6]};
+`;
+
+const StyledMetaSpacer = styled.div`
+  flex: 1;
+`;
+
 const StyledCommentsToggle = styled.button`
   background: transparent;
   border: 0;
@@ -158,10 +170,15 @@ const StyledCommentsToggle = styled.button`
   cursor: pointer;
   font-family: inherit;
   font-size: ${themeCssVariables.font.size.xxs};
-  padding: 0 0 ${themeCssVariables.spacing[1]} ${themeCssVariables.spacing[6]};
+  align-items: center;
+  border-radius: ${themeCssVariables.border.radius.sm};
+  display: inline-flex;
+  gap: ${themeCssVariables.spacing[1]};
+  padding: 2px 4px;
   text-align: left;
 
   &:hover {
+    background: ${themeCssVariables.background.transparent.light};
     color: ${themeCssVariables.font.color.secondary};
   }
 `;
@@ -236,13 +253,12 @@ const TaskDate = ({
       }}
     >
       {icon}
-      {prefix}
       {isSet
-        ? new Date(value as string).toLocaleDateString('ru-RU', {
+        ? `${prefix} ${new Date(value as string).toLocaleDateString('ru-RU', {
             day: 'numeric',
             month: 'short',
-          })
-        : null}
+          })}`
+        : prefix}
       <StyledHiddenDateInput
         ref={inputRef}
         type="date"
@@ -293,7 +309,9 @@ export const TaskRow = ({ task }: { task: Task }) => {
     limit: 1,
   });
 
-  const assigneeName = fullName(task.assignee);
+  const assigneeName =
+    fullName(task.assignee) ||
+    fullName(members.find((member) => member.id === task.assigneeId));
 
   return (
     <StyledWrapper>
@@ -313,7 +331,7 @@ export const TaskRow = ({ task }: { task: Task }) => {
                 src={task.assignee?.avatarUrl}
                 name={assigneeName === '' ? '?' : assigneeName}
                 size="sm"
-                shape="rounded"
+                shape="circle"
               />
               <StyledAssigneeSelect
                 value={task.assigneeId ?? ''}
@@ -354,50 +372,54 @@ export const TaskRow = ({ task }: { task: Task }) => {
               }}
             />
           </StyledLeftSide>
-
-          <StyledRightSide>
-            <TaskDate
-              value={task.scheduledAt}
-              isOverdue={false}
-              label={t`When to start`}
-              icon={<IconCalendarEvent size={14} />}
-              onChange={(value) =>
-                update({ scheduledAt: toStoredValue(value) })
-              }
-            />
-            <TaskDate
-              value={task.dueAt}
-              isOverdue={isOverdue}
-              label={t`Deadline`}
-              icon={<IconFlag size={14} />}
-              onChange={(value) => update({ dueAt: toStoredValue(value) })}
-            />
-            <StyledCancelButton
-              type="button"
-              title={t`Mark as cancelled`}
-              onClick={(event) => {
-                event.stopPropagation();
-                update({ status: 'CANCELLED' });
-              }}
-            >
-              <IconX size={14} />
-            </StyledCancelButton>
-          </StyledRightSide>
         </StyledInner>
       </ActivityRow>
 
-      <StyledCommentsToggle
-        onClick={(event) => {
-          event.stopPropagation();
-          setAreCommentsOpen(!areCommentsOpen);
-        }}
-      >
-        {areCommentsOpen
-          ? t`Hide comments`
-          : isDefined(commentCount) && commentCount > 0
-            ? t`Comments (${commentCount})`
-            : t`Comments`}
-      </StyledCommentsToggle>
+      <StyledMetaRow>
+        <StyledCommentsToggle
+          onClick={(event) => {
+            event.stopPropagation();
+            setAreCommentsOpen(!areCommentsOpen);
+          }}
+        >
+          <IconMessageCircle size={14} />
+          {areCommentsOpen
+            ? t`Hide comments`
+            : isDefined(commentCount) && commentCount > 0
+              ? t`Comments (${commentCount})`
+              : t`Comments`}
+        </StyledCommentsToggle>
+
+        <TaskDate
+          value={task.scheduledAt}
+          isOverdue={false}
+          label={t`When to start`}
+          prefix={t`start`}
+          icon={<IconCalendarEvent size={14} />}
+          onChange={(value) => update({ scheduledAt: toStoredValue(value) })}
+        />
+        <TaskDate
+          value={task.dueAt}
+          isOverdue={isOverdue}
+          label={t`Deadline`}
+          prefix={t`due`}
+          icon={<IconFlag size={14} />}
+          onChange={(value) => update({ dueAt: toStoredValue(value) })}
+        />
+
+        <StyledMetaSpacer />
+
+        <StyledCancelButton
+          type="button"
+          title={t`Mark as cancelled`}
+          onClick={(event) => {
+            event.stopPropagation();
+            update({ status: 'CANCELLED' });
+          }}
+        >
+          <IconX size={14} />
+        </StyledCancelButton>
+      </StyledMetaRow>
       {areCommentsOpen && <TaskComments taskId={task.id} />}
     </StyledWrapper>
   );

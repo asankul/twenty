@@ -44,7 +44,12 @@ export default defineConfig(({ mode }) => {
   const apiProxy = Object.fromEntries(
     API_PROXY_PATHS.map((apiPath) => [
       buildApiProxyMatcher(apiPath),
-      { target: apiProxyTarget },
+      {
+        target: apiProxyTarget,
+        // Без подмены заголовка Host удалённый сервер получает «localhost»
+        // и не находит свой сайт: прокси на боевой адрес отвечает 502.
+        changeOrigin: true,
+      },
     ]),
   );
 
