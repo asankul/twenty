@@ -1,6 +1,5 @@
-import { isRecordFieldReadOnly } from '@/object-record/read-only/utils/isRecordFieldReadOnly';
+import { styled } from '@linaria/react';
 import { RecordBoardContext } from '@/object-record/record-board/contexts/RecordBoardContext';
-import { StopPropagationContainer } from '@/object-record/record-board/record-board-card/components/StopPropagationContainer';
 import { RECORD_BOARD_CARD_INPUT_ID_PREFIX } from '@/object-record/record-board/record-board-card/constants/RecordBoardCardInputIdPrefix';
 import { RecordBoardCardContext } from '@/object-record/record-board/record-board-card/contexts/RecordBoardCardContext';
 import { recordBoardCardHoverPositionComponentState } from '@/object-record/record-board/record-board-card/states/recordBoardCardHoverPositionComponentState';
@@ -20,18 +19,31 @@ import { useSetAtomComponentState } from '@/ui/utilities/state/jotai/hooks/useSe
 import { useContext } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 
+/**
+ * Поле на карточке доски — просто строка текста.
+ *
+ * Раньше каждое поле перехватывало клик и открывалось на правку: куда ни
+ * ткни, попадаешь в поле, а карточка не открывается. Доска нужна, чтобы
+ * посмотреть и открыть; править — внутри карточки или в очереди.
+ */
+const StyledFieldLine = styled.div`
+  display: flex;
+  flex-direction: row;
+  pointer-events: none;
+  width: 100%;
+`;
+
 export const RecordBoardCardBody = () => {
-  const { recordId, isRecordReadOnly, isDragOverlay } = useContext(
+  const { recordId, isDragOverlay } = useContext(
     RecordBoardCardContext,
   );
 
-  const { updateOneRecord, objectPermissions } = useContext(RecordBoardContext);
+  const { updateOneRecord } = useContext(RecordBoardContext);
 
   const {
     labelIdentifierFieldMetadataItem,
     fieldMetadataItemByFieldMetadataItemId,
     fieldDefinitionByFieldMetadataItemId,
-    objectPermissionsByObjectMetadataId,
   } = useRecordIndexContextOrThrow();
 
   const useUpdateOneRecordHook: RecordUpdateHook = () => {
@@ -80,19 +92,15 @@ export const RecordBoardCardBody = () => {
         }
 
         return (
-          <StopPropagationContainer key={recordField.fieldMetadataItemId}>
+          <StyledFieldLine key={recordField.fieldMetadataItemId}>
             <FieldContext.Provider
               value={{
                 recordId,
                 maxWidth: 156,
                 isLabelIdentifier: false,
-                isRecordFieldReadOnly: isRecordFieldReadOnly({
-                  isRecordReadOnly,
-                  objectPermissions,
-                  fieldMetadataItem,
-                  fieldDefinition: correspondingFieldDefinition,
-                  objectPermissionsByObjectMetadataId,
-                }),
+                // На доске поля не правятся ни у кого: клик должен
+                // открывать карточку, а не редактор поля.
+                isRecordFieldReadOnly: true,
                 fieldDefinition: correspondingFieldDefinition,
                 useUpdateRecord: useUpdateOneRecordHook,
                 isDisplayModeFixHeight: true,
@@ -117,7 +125,7 @@ export const RecordBoardCardBody = () => {
                 />
               </RecordFieldComponentInstanceContext.Provider>
             </FieldContext.Provider>
-          </StopPropagationContainer>
+          </StyledFieldLine>
         );
       })}
     </RecordCardBodyContainer>
