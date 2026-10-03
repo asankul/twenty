@@ -54,9 +54,11 @@ type Lead = {
   id: string;
   name?: string | null;
   channel?: string | null;
+  contactValue?: string | null;
   district?: string | null;
   rooms?: number | null;
   comment?: string | null;
+  lastMessage?: string | null;
   lostReason?: string | null;
   createdAt?: string | null;
   budgetMax?: { amountMicros?: number | null; currencyCode?: string | null } | null;
@@ -182,6 +184,77 @@ const StyledWants = styled.div`
   padding: 12px;
 `;
 
+const StyledSaid = styled.div`
+  background: ${themeCssVariables.background.transparent.lighter};
+  border-left: 3px solid ${themeCssVariables.color.blue};
+  border-radius: 6px;
+  color: ${themeCssVariables.font.color.primary};
+  font-size: ${themeCssVariables.font.size.md};
+  line-height: 1.45;
+  padding: 10px 12px;
+`;
+
+const StyledSaidEmpty = styled.div`
+  background: ${themeCssVariables.background.transparent.lighter};
+  border-left: 3px solid ${themeCssVariables.border.color.medium};
+  border-radius: 6px;
+  color: ${themeCssVariables.font.color.tertiary};
+  font-size: ${themeCssVariables.font.size.md};
+  padding: 10px 12px;
+`;
+
+const StyledFacts = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const StyledFact = styled.div`
+  align-items: center;
+  border-bottom: 1px solid ${themeCssVariables.border.color.light};
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 40px;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+`;
+
+const StyledFactLabel = styled.span`
+  color: ${themeCssVariables.font.color.tertiary};
+  font-size: ${themeCssVariables.font.size.md};
+  flex-shrink: 0;
+`;
+
+const StyledFactValue = styled.button<{ isEmpty: boolean; canEdit: boolean }>`
+  background: transparent;
+  border: 0;
+  color: ${({ isEmpty }) =>
+    isEmpty ? themeCssVariables.font.color.light : themeCssVariables.font.color.primary};
+  cursor: ${({ canEdit }) => (canEdit ? 'pointer' : 'default')};
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.md};
+  font-weight: ${themeCssVariables.font.weight.medium};
+  min-height: 36px;
+  padding: 0 4px;
+  text-align: right;
+`;
+
+const StyledFactInput = styled.input`
+  background: ${themeCssVariables.background.primary};
+  border: 1px solid ${themeCssVariables.color.blue};
+  border-radius: 6px;
+  color: ${themeCssVariables.font.color.primary};
+  font-family: inherit;
+  font-size: 16px;
+  max-width: 180px;
+  min-height: 36px;
+  outline: none;
+  padding: 0 8px;
+  text-align: right;
+`;
+
 const StyledTodo = styled.div`
   border-top: 1px solid ${themeCssVariables.border.color.light};
   font-size: 18px;
@@ -268,9 +341,14 @@ const money = (value: Lead['budgetMax']) => {
   if (micros === null || micros === undefined) return null;
   const amount = Number(micros) / 1_000_000;
   if (!Number.isFinite(amount) || amount === 0) return null;
+  // Бюджеты тут от восьмидесяти тысяч до семи миллионов сомов — круглим
+  // до тысяч, иначе в строку не влезает и читается хуже.
   const short =
-    amount >= 1000 ? `${Math.round(amount / 1000)} тыс` : `${Math.round(amount)}`;
-  return `до ${short} ${value?.currencyCode ?? ''}`.trim();
+    amount >= 1000
+      ? `${Math.round(amount / 1000).toLocaleString('ru-RU')} тыс`
+      : `${Math.round(amount)}`;
+  const currency = value?.currencyCode === 'KGS' ? 'сом' : (value?.currencyCode ?? '');
+  return `${short} ${currency}`.trim();
 };
 
 const snoozeUntil = (option: (typeof SNOOZES)[number]) => {
@@ -283,6 +361,66 @@ const snoozeUntil = (option: (typeof SNOOZES)[number]) => {
     when.setHours(when.getHours() + option.hours);
   }
   return when.toISOString();
+};
+
+/**
+ * Строка «что известно». Показывается всегда, даже когда пусто: прочерк
+ * говорит брокеру, чего не хватает, и даёт вписать прямо во время разговора.
+ * Иначе эти поля не заполняются никогда — сейчас бюджет известен у шести
+ * заявок из ста двадцати семи.
+ */
+const Fact = ({
+  label,
+  value,
+  placeholder,
+  onSave,
+}: {
+  label: string;
+  value: string | null;
+  placeholder?: string;
+  onSave?: (raw: string) => void;
+}) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed !== '') onSave?.(trimmed);
+  };
+
+  return (
+    <StyledFact>
+      <StyledFactLabel>{label}</StyledFactLabel>
+      {editing ? (
+        <StyledFactInput
+          autoFocus
+          value={draft}
+          placeholder={placeholder}
+          inputMode={placeholder === 'сом' || label === 'Комнат' ? 'numeric' : 'text'}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.currentTarget.blur();
+            if (event.key === 'Escape') setEditing(false);
+          }}
+        />
+      ) : (
+        <StyledFactValue
+          type="button"
+          isEmpty={!value}
+          canEdit={Boolean(onSave)}
+          onClick={() => {
+            if (!onSave) return;
+            setDraft(value ?? '');
+            setEditing(true);
+          }}
+        >
+          {value ?? (onSave ? '— вписать' : '—')}
+        </StyledFactValue>
+      )}
+    </StyledFact>
+  );
 };
 
 export const WorkQueuePage = () => {
@@ -300,7 +438,7 @@ export const WorkQueuePage = () => {
     objectNameSingular: 'taskTarget',
     limit: 500,
   });
-  const { records: leads } = useFindManyRecords<Lead>({
+  const { records: leads, refetch: refetchLeads } = useFindManyRecords<Lead>({
     objectNameSingular: 'opportunity',
     limit: 500,
   });
@@ -377,6 +515,18 @@ export const WorkQueuePage = () => {
     await finish();
   };
 
+  const saveLead = async (
+    input: Record<string, unknown>,
+  ) => {
+    if (!lead) return;
+    await updateOneRecord({
+      idToUpdate: lead.id,
+      updateOneRecordInput: input,
+      objectNameSingular: 'opportunity',
+    });
+    await refetchLeads();
+  };
+
   const snooze = async (option: (typeof SNOOZES)[number]) => {
     if (!task || busy) return;
     setBusy(true);
@@ -410,8 +560,6 @@ export const WorkQueuePage = () => {
   const phone = lead?.phone?.primaryPhoneNumber
     ? `${lead.phone.primaryPhoneCallingCode ?? ''}${lead.phone.primaryPhoneNumber}`
     : null;
-  const wants = [money(lead?.budgetMax), lead?.rooms ? `${lead.rooms} комн.` : null,
-    lead?.district || null].filter(Boolean);
   const isLate = Boolean(task.dueAt && new Date(task.dueAt).getTime() < Date.now());
 
   return (
@@ -433,7 +581,11 @@ export const WorkQueuePage = () => {
         <div>
           <StyledName>{lead?.name || 'Заявка недоступна'}</StyledName>
           <StyledSub isLate={isLate}>
-            {[CHANNELS[lead?.channel ?? ''] ?? lead?.channel, waitingFor(lead?.createdAt)]
+            {[
+              CHANNELS[lead?.channel ?? ''] ?? lead?.channel,
+              lead?.contactValue,
+              waitingFor(lead?.createdAt),
+            ]
               .filter(Boolean)
               .join(' · ')}
           </StyledSub>
@@ -450,12 +602,51 @@ export const WorkQueuePage = () => {
           </StyledChatLink>
         )}
 
-        {(wants.length > 0 || lead?.comment) && (
-          <StyledWants>
-            {wants.length > 0 && <div>{wants.join(' · ')}</div>}
-            {lead?.comment && <div>{lead.comment}</div>}
-          </StyledWants>
+        {lead?.lastMessage ? (
+          <StyledSaid>«{lead.lastMessage}»</StyledSaid>
+        ) : (
+          <StyledSaidEmpty>Клиент ничего не написал</StyledSaidEmpty>
         )}
+
+        <StyledFacts>
+          <Fact label="Телефон" value={phone} />
+          <Fact
+            label="Бюджет до"
+            value={money(lead?.budgetMax)}
+            placeholder="сом"
+            onSave={(raw) => {
+              const amount = Number(raw.replace(/[^0-9]/g, ''));
+              if (!amount) return;
+              saveLead({
+                budgetMax: {
+                  amountMicros: amount * 1_000_000,
+                  currencyCode: lead?.budgetMax?.currencyCode ?? 'KGS',
+                },
+              });
+            }}
+          />
+          <Fact
+            label="Комнат"
+            value={lead?.rooms ? String(lead.rooms) : null}
+            placeholder="2"
+            onSave={(raw) => {
+              const rooms = Number(raw.replace(/[^0-9]/g, ''));
+              if (rooms) saveLead({ rooms });
+            }}
+          />
+          <Fact
+            label="Район"
+            value={lead?.district || null}
+            placeholder="Асанбай"
+            onSave={(district) => saveLead({ district })}
+          />
+          <Fact
+            label="Заметка"
+            value={lead?.comment || null}
+            placeholder="о чём договорились"
+            onSave={(comment) => saveLead({ comment })}
+          />
+        </StyledFacts>
 
         <StyledTodo>
           {task.title || 'Задача'}
