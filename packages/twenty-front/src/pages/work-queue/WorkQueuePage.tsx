@@ -84,6 +84,24 @@ const SNOOZES = [
   { label: 'Завтра утром', hours: 0, atHour: 10, tomorrow: true },
 ] as const;
 
+/** Когда показ. Время по умолчанию дневное — показы редко ставят ночью. */
+/** Больше трёх попыток дозвона — уже не занятой клиент, а вечный лид. */
+const MAX_NO_ANSWER = 3;
+
+const SHOW_DAYS = [
+  { label: 'Сегодня', days: 0 },
+  { label: 'Завтра', days: 1 },
+  { label: 'Послезавтра', days: 2 },
+] as const;
+
+const atDay = (days: number) => {
+  const when = new Date();
+  when.setDate(when.getDate() + days);
+  when.setHours(14, 0, 0, 0);
+  if (when.getTime() < Date.now()) when.setHours(new Date().getHours() + 2, 0, 0, 0);
+  return when.toISOString();
+};
+
 const CHANNELS: Record<string, string> = {
   INSTAGRAM: 'Instagram',
   WHATSAPP: 'WhatsApp',
@@ -367,6 +385,18 @@ const StyledInput = styled.input`
   padding: 0 12px;
 `;
 
+/** Нативный выбор даты внутри кнопки: своего календаря не рисуем,
+ *  на телефоне системный удобнее и привычнее. */
+const StyledDayInput = styled.input`
+  background: transparent;
+  border: 0;
+  color: ${themeCssVariables.font.color.secondary};
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.sm};
+  outline: none;
+  width: 100%;
+`;
+
 const StyledHint = styled.div`
   color: ${themeCssVariables.font.color.tertiary};
   font-size: ${themeCssVariables.font.size.sm};
@@ -478,6 +508,8 @@ const Fact = ({
 export const WorkQueuePage = () => {
   const me = useAtomStateValue(currentWorkspaceMemberState) as Member | null;
   const [pending, setPending] = useState<string | null>(null);
+  const [step, setStep] = useState<'date' | 'need' | 'note'>('note');
+  const [nextAt, setNextAt] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [showSnooze, setShowSnooze] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -535,6 +567,18 @@ export const WorkQueuePage = () => {
 
   const task = queue[0];
 
+  // Сколько раз уже не дозвонились по этой заявке. После третьей попытки
+  // кнопку убираем: иначе лид возвращается месяцами и живёт вечно.
+  const noAnswerTries = useMemo(() => {
+    if (!task) return 0;
+    const leadId = targets.find((t) => t.taskId === task.id)?.targetOpportunityId;
+    if (!leadId) return 0;
+    const sameLead = new Set(
+      targets.filter((t) => t.targetOpportunityId === leadId).map((t) => t.taskId),
+    );
+    return tasks.filter((t) => sameLead.has(t.id) && t.outcome === 'NO_ANSWER').length;
+  }, [task, targets, tasks]);
+
   const lead = useMemo(() => {
     if (!task) return null;
     const leadId = targets.find((target) => target.taskId === task.id)
@@ -544,6 +588,8 @@ export const WorkQueuePage = () => {
 
   const finish = async () => {
     setPending(null);
+    setStep('note');
+    setNextAt(null);
     setNote('');
     setShowSnooze(false);
     // Обновляем все три списка, а не только задачи: у новой задачи своя
@@ -575,7 +621,10 @@ export const WorkQueuePage = () => {
 
     await updateOneRecord({
       idToUpdate: task.id,
-      updateOneRecordInput: { outcome: pending },
+      updateOneRecordInput: {
+        outcome: pending,
+        ...(nextAt ? { nextAt } : {}),
+      },
       objectNameSingular: 'task',
     });
     await finish();
@@ -732,6 +781,86 @@ export const WorkQueuePage = () => {
             Эта задача стоит на заявке другой команды — её не видно по правам.
             Скажите старшему, он передаст задачу владельцу заявки.
           </StyledWants>
+        ) : pending && step === 'date' ? (
+          <StyledReasonBox>
+            <StyledHint>Когда показ?</StyledHint>
+            <StyledButtons>
+              {SHOW_DAYS.map((day) => (
+                <StyledSnooze
+                  key={day.label}
+                  type="button"
+                  style={{ gridColumn: 'span 1' }}
+                  onClick={() => {
+                    setNextAt(atDay(day.days));
+                    setStep('note');
+                  }}
+                >
+                  {day.label}
+                </StyledSnooze>
+              ))}
+              <StyledSnooze type="button" style={{ gridColumn: 'span 1' }}>
+                <StyledDayInput
+                  type="datetime-local"
+                  onChange={(event) => {
+                    if (!event.target.value) return;
+                    setNextAt(new Date(event.target.value).toISOString());
+                    setStep('note');
+                  }}
+                />
+              </StyledSnooze>
+              <StyledSnooze type="button" onClick={() => setPending(null)}>
+                Назад
+              </StyledSnooze>
+            </StyledButtons>
+          </StyledReasonBox>
+        ) : pending && step === 'need' ? (
+          <StyledReasonBox>
+            <StyledHint>
+              Чтобы считать клиента квалифицированным, нужно хоть что-то про
+              него знать. Впишите бюджет или район.
+            </StyledHint>
+            <StyledFacts>
+              <Fact
+                label="Бюджет до"
+                value={money(lead?.budgetMax)}
+                placeholder="сом"
+                onSave={(raw) => {
+                  const amount = Number(raw.replace(/[^0-9]/g, ''));
+                  if (!amount) return;
+                  saveLead({
+                    budgetMax: {
+                      amountMicros: amount * 1_000_000,
+                      currencyCode: lead?.budgetMax?.currencyCode ?? 'KGS',
+                    },
+                  });
+                }}
+              />
+              <Fact
+                label="Район"
+                value={lead?.district || null}
+                placeholder="Асанбай"
+                onSave={(district) => saveLead({ district })}
+              />
+            </StyledFacts>
+            <StyledButtons>
+              <StyledSnooze type="button" onClick={() => setPending(null)}>
+                Назад
+              </StyledSnooze>
+              <StyledOutcome
+                type="button"
+                disabled={!lead?.budgetMax?.amountMicros && !lead?.district}
+                style={
+                  {
+                    '--pill-bg': 'var(--t-tag-background-yellow)',
+                    '--pill-fg': 'var(--t-tag-text-yellow)',
+                  } as React.CSSProperties
+                }
+                onClick={() => setStep('note')}
+              >
+                Дальше
+              </StyledOutcome>
+            </StyledButtons>
+          </StyledReasonBox>
         ) : pending ? (
           <StyledReasonBox>
             <StyledHint>
@@ -793,7 +922,10 @@ export const WorkQueuePage = () => {
           </StyledButtons>
         ) : (
           <StyledButtons>
-            {OUTCOMES.map((outcome) => (
+            {OUTCOMES.filter(
+              (outcome) =>
+                outcome.value !== 'NO_ANSWER' || noAnswerTries < MAX_NO_ANSWER,
+            ).map((outcome) => (
               <StyledOutcome
                 key={outcome.value}
                 type="button"
@@ -806,7 +938,21 @@ export const WorkQueuePage = () => {
                 }
                 onClick={() => {
                   setNote('');
+                  setNextAt(null);
                   setPending(outcome.value);
+                  // Показ без даты бессмыслен, а «думает» без бюджета
+                  // и района не отличить от «ничего не узнал».
+                  if (outcome.value === 'SHOWING_SET') {
+                    setStep('date');
+                  } else if (
+                    outcome.value === 'THINKING' &&
+                    !lead?.budgetMax?.amountMicros &&
+                    !lead?.district
+                  ) {
+                    setStep('need');
+                  } else {
+                    setStep('note');
+                  }
                 }}
               >
                 {outcome.label}
