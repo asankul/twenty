@@ -1,5 +1,6 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
+import type React from 'react';
 import { type ReactNode, useRef, useState } from 'react';
 
 import { ActivityRow } from '@/activities/components/ActivityRow';
@@ -8,6 +9,7 @@ import { useCompleteTask } from '@/activities/tasks/hooks/useCompleteTask';
 import { type Task } from '@/activities/types/Task';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
+import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 import {
@@ -33,9 +35,14 @@ import { themeCssVariables } from 'twenty-ui/theme';
  */
 
 const StyledWrapper = styled.div`
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   width: 100%;
+
+  &:hover {
+    background: ${themeCssVariables.background.transparent.lighter};
+  }
 `;
 
 // Задачи открывают и в боковой панели, и на всю ширину. В панели правый край
@@ -270,8 +277,55 @@ const TaskDate = ({
   );
 };
 
+/**
+ * Результаты задачи.
+ *
+ * Подписи на кнопках короткие, полные — в подсказке: шесть длинных надписей
+ * не умещаются в боковой панели. Строки намеренно не через `t`: значения
+ * и их названия живут в базе по-русски, и кнопка обязана совпадать с тем,
+ * что потом видно в поле.
+ */
+const OUTCOMES = [
+  { value: 'NO_ANSWER', short: 'Не дозвонился', full: 'Не дозвонился', color: 'orange' },
+  { value: 'THINKING', short: 'Думает', full: 'Поговорил, думает', color: 'yellow' },
+  { value: 'SHOWING_SET', short: 'На показ', full: 'Записал на показ', color: 'blue' },
+  { value: 'NO_SHOW', short: 'Не пришёл', full: 'На показ не пришёл', color: 'red' },
+  { value: 'BOOKED', short: 'Бронь', full: 'Внёс бронь', color: 'green' },
+  { value: 'REFUSED', short: 'Отказ', full: 'Отказ', color: 'gray' },
+] as const;
+
+const StyledOutcomeRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${themeCssVariables.spacing[1]};
+  padding: ${themeCssVariables.spacing[0]} ${themeCssVariables.spacing[4]}
+    ${themeCssVariables.spacing[2]};
+`;
+
+const StyledOutcomeButton = styled.button<{ isChosen: boolean }>`
+  background: ${({ isChosen }) =>
+    isChosen ? 'var(--pill-bg)' : themeCssVariables.background.transparent.light};
+  border: 1px solid
+    ${({ isChosen }) => (isChosen ? 'var(--pill-bg)' : 'transparent')};
+  border-radius: ${themeCssVariables.border.radius.sm};
+  color: ${({ isChosen }) =>
+    isChosen ? 'var(--pill-fg)' : themeCssVariables.font.color.secondary};
+  cursor: pointer;
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.xs};
+  font-weight: ${themeCssVariables.font.weight.medium};
+  padding: ${themeCssVariables.spacing[1]} ${themeCssVariables.spacing[2]};
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--pill-bg);
+    color: var(--pill-fg);
+  }
+`;
+
 export const TaskRow = ({ task }: { task: Task }) => {
   const { updateOneRecord } = useUpdateOneRecord();
+  const { openRecordInSidePanel } = useOpenRecordInSidePanel();
   const [title, setTitle] = useState(task.title ?? '');
   const [areCommentsOpen, setAreCommentsOpen] = useState(false);
 
@@ -314,8 +368,15 @@ export const TaskRow = ({ task }: { task: Task }) => {
     fullName(members.find((member) => member.id === task.assigneeId));
 
   return (
-    <StyledWrapper>
-      <ActivityRow>
+    <StyledWrapper
+      onClick={() =>
+        openRecordInSidePanel({
+          recordId: task.id,
+          objectNameSingular: CoreObjectNameSingular.Task,
+        })
+      }
+    >
+      <ActivityRow disabled>
         <StyledInner>
           <StyledLeftSide>
             <StyledCheckboxSlot onClick={(event) => event.stopPropagation()}>
@@ -420,7 +481,35 @@ export const TaskRow = ({ task }: { task: Task }) => {
           <IconX size={14} />
         </StyledCancelButton>
       </StyledMetaRow>
-      {areCommentsOpen && <TaskComments taskId={task.id} />}
+      <StyledOutcomeRow>
+        {OUTCOMES.map((outcome) => (
+          <StyledOutcomeButton
+            key={outcome.value}
+            type="button"
+            title={outcome.full}
+            isChosen={task.outcome === outcome.value}
+            style={
+              {
+                '--pill-bg': `var(--t-tag-background-${outcome.color})`,
+                '--pill-fg': `var(--t-tag-text-${outcome.color})`,
+              } as React.CSSProperties
+            }
+            onClick={(event) => {
+              event.stopPropagation();
+              update({ outcome: outcome.value });
+              setAreCommentsOpen(true);
+            }}
+          >
+            {outcome.short}
+          </StyledOutcomeButton>
+        ))}
+      </StyledOutcomeRow>
+
+      {areCommentsOpen && (
+        <div onClick={(event) => event.stopPropagation()}>
+          <TaskComments taskId={task.id} />
+        </div>
+      )}
     </StyledWrapper>
   );
 };
