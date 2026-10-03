@@ -1136,6 +1136,40 @@ export const WorkQueuePage = () => {
           </StyledReasonBox>
         ) : pending ? (
           <StyledReasonBox>
+            {pending !== 'REFUSED' && pending !== 'NO_ANSWER' && (
+              <StyledFacts>
+                <Fact
+                  label="Бюджет до"
+                  value={money(lead?.budgetMax)}
+                  placeholder="сом"
+                  onSave={(raw) => {
+                    const amount = Number(raw.replace(/[^0-9]/g, ''));
+                    if (!amount) return;
+                    saveLead({
+                      budgetMax: {
+                        amountMicros: amount * 1_000_000,
+                        currencyCode: lead?.budgetMax?.currencyCode ?? 'KGS',
+                      },
+                    });
+                  }}
+                />
+                <Fact
+                  label="Комнат"
+                  value={lead?.rooms ? String(lead.rooms) : null}
+                  placeholder="2"
+                  onSave={(raw) => {
+                    const rooms = Number(raw.replace(/[^0-9]/g, ''));
+                    if (rooms) saveLead({ rooms });
+                  }}
+                />
+                <Fact
+                  label="Район"
+                  value={lead?.district || null}
+                  placeholder="Асанбай"
+                  onSave={(district) => saveLead({ district })}
+                />
+              </StyledFacts>
+            )}
             <StyledHint>
               {OUTCOMES.find((item) => item.value === pending)?.label}. Что
               получилось? Без этого задачу не закрыть.
