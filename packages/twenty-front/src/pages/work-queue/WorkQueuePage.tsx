@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { currentWorkspaceMemberState } from '@/auth/states/currentWorkspaceMemberState';
+import { useCreateOneRecord } from '@/object-record/hooks/useCreateOneRecord';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
 import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
@@ -476,8 +477,8 @@ const Fact = ({
 
 export const WorkQueuePage = () => {
   const me = useAtomStateValue(currentWorkspaceMemberState) as Member | null;
-  const [askReason, setAskReason] = useState(false);
-  const [reason, setReason] = useState('');
+  const [pending, setPending] = useState<string | null>(null);
+  const [note, setNote] = useState('');
   const [showSnooze, setShowSnooze] = useState(false);
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -486,7 +487,7 @@ export const WorkQueuePage = () => {
     objectNameSingular: 'task',
     limit: 500,
   });
-  const { records: targets } = useFindManyRecords<TaskTarget>({
+  const { records: targets, refetch: refetchTargets } = useFindManyRecords<TaskTarget>({
     objectNameSingular: 'taskTarget',
     limit: 500,
   });
@@ -496,6 +497,9 @@ export const WorkQueuePage = () => {
   });
 
   const { updateOneRecord } = useUpdateOneRecord();
+  const { createOneRecord: createComment } = useCreateOneRecord({
+    objectNameSingular: 'taskComment',
+  });
 
   const queue = useMemo(() => {
     const now = Date.now();
@@ -539,44 +543,47 @@ export const WorkQueuePage = () => {
   }, [task, targets, leads]);
 
   const finish = async () => {
-    setAskReason(false);
-    setReason('');
+    setPending(null);
+    setNote('');
     setShowSnooze(false);
-    await refetchTasks();
+    // Обновляем все три списка, а не только задачи: у новой задачи своя
+    // связка с заявкой, и без неё карточка показывала «Заявка недоступна»
+    // на собственном же лиде.
+    await Promise.all([refetchTasks(), refetchTargets(), refetchLeads()]);
     setLeaving(false);
     setBusy(false);
   };
 
-  const pick = async (value: string) => {
-    if (!task || busy) return;
-
-    // Отказ без причины триггер не пропустит — спрашиваем до отправки,
-    // иначе кнопка молча ничего не сделает и это выглядит поломкой.
-    if (value === 'REFUSED' && !lead?.lostReason?.trim() && !reason.trim()) {
-      setAskReason(true);
-      return;
-    }
+  /** Результат всегда подписывается: иначе через месяц никто не вспомнит,
+   *  о чём говорили, и история сделки превращается в набор цветных меток. */
+  const confirm = async () => {
+    const text = note.trim();
+    if (!task || !pending || text === '' || busy) return;
 
     setBusy(true);
     setLeaving(true);
-    if (value === 'REFUSED' && reason.trim() && lead) {
+
+    await createComment({ text, taskId: task.id, authorId: me?.id });
+
+    if (pending === 'REFUSED' && lead) {
       await updateOneRecord({
         idToUpdate: lead.id,
-        updateOneRecordInput: { lostReason: reason.trim() },
+        updateOneRecordInput: { lostReason: text },
         objectNameSingular: 'opportunity',
       });
     }
+
     await updateOneRecord({
       idToUpdate: task.id,
-      updateOneRecordInput: { outcome: value },
+      updateOneRecordInput: { outcome: pending },
       objectNameSingular: 'task',
     });
     await finish();
   };
 
-  const saveLead = async (
-    input: Record<string, unknown>,
-  ) => {
+  /** Правка заявки прямо из карточки: бюджет и район заполняются во время
+   *  разговора или не заполняются никогда. */
+  const saveLead = async (input: Record<string, unknown>) => {
     if (!lead) return;
     await updateOneRecord({
       idToUpdate: lead.id,
@@ -725,31 +732,46 @@ export const WorkQueuePage = () => {
             Эта задача стоит на заявке другой команды — её не видно по правам.
             Скажите старшему, он передаст задачу владельцу заявки.
           </StyledWants>
-        ) : askReason ? (
+        ) : pending ? (
           <StyledReasonBox>
-            <StyledHint>Почему отказ? Без этого заявку не закрыть.</StyledHint>
+            <StyledHint>
+              {OUTCOMES.find((item) => item.value === pending)?.label}. Что
+              получилось? Без этого задачу не закрыть.
+            </StyledHint>
             <StyledInput
               autoFocus
-              value={reason}
-              placeholder="Дорого, купил в другом месте, передумал…"
-              onChange={(event) => setReason(event.target.value)}
+              value={note}
+              placeholder={
+                pending === 'REFUSED'
+                  ? 'Дорого, купил в другом месте, передумал…'
+                  : 'Коротко: о чём договорились'
+              }
+              onChange={(event) => setNote(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') confirm();
+                if (event.key === 'Escape') setPending(null);
+              }}
             />
             <StyledButtons>
-              <StyledSnooze type="button" onClick={() => setAskReason(false)}>
+              <StyledSnooze type="button" onClick={() => setPending(null)}>
                 Назад
               </StyledSnooze>
               <StyledOutcome
                 type="button"
-                disabled={!reason.trim() || busy}
+                disabled={!note.trim() || busy}
                 style={
                   {
-                    '--pill-bg': 'var(--t-tag-background-gray)',
-                    '--pill-fg': 'var(--t-tag-text-gray)',
+                    '--pill-bg': `var(--t-tag-background-${
+                      OUTCOMES.find((item) => item.value === pending)?.color ?? 'gray'
+                    })`,
+                    '--pill-fg': `var(--t-tag-text-${
+                      OUTCOMES.find((item) => item.value === pending)?.color ?? 'gray'
+                    })`,
                   } as React.CSSProperties
                 }
-                onClick={() => pick('REFUSED')}
+                onClick={confirm}
               >
-                Закрыть как отказ
+                Готово
               </StyledOutcome>
             </StyledButtons>
           </StyledReasonBox>
@@ -782,7 +804,10 @@ export const WorkQueuePage = () => {
                     '--pill-fg': `var(--t-tag-text-${outcome.color})`,
                   } as React.CSSProperties
                 }
-                onClick={() => pick(outcome.value)}
+                onClick={() => {
+                  setNote('');
+                  setPending(outcome.value);
+                }}
               >
                 {outcome.label}
               </StyledOutcome>
