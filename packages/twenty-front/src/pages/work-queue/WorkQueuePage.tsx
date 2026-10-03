@@ -352,6 +352,18 @@ const StyledFactInput = styled.input`
   text-align: right;
 `;
 
+/** Очередь состоит из задач, а не из заявок: у заявки нет ни срока, ни
+ *  действия. Но заявка на карточке подана крупно, и без подписи непонятно,
+ *  что именно надо сделать. */
+const StyledTodoLabel = styled.div`
+  color: ${themeCssVariables.font.color.tertiary};
+  font-size: ${themeCssVariables.font.size.xs};
+  font-weight: ${themeCssVariables.font.weight.medium};
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+`;
+
 const StyledDeadline = styled.div<{ late: boolean }>`
   background: ${({ late }) =>
     late ? 'var(--t-tag-background-red)' : 'var(--t-tag-background-gray)'};
@@ -1037,6 +1049,7 @@ export const WorkQueuePage = () => {
         </StyledFacts>
 
         <StyledTodo>
+          <StyledTodoLabel>Что сделать</StyledTodoLabel>
           {task.title || 'Задача'}
           {(() => {
             const deadline = deadlineText(task.dueAt);
