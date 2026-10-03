@@ -8,6 +8,7 @@ import { useCreateOneRecord } from '@/object-record/hooks/useCreateOneRecord';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
 import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
+import { isDefined } from 'twenty-shared/utils';
 
 /**
  * Очередь: одна задача на экране.
@@ -41,6 +42,14 @@ type Task = {
   updatedAt?: string | null;
   snoozeCount?: number | null;
   assigneeId?: string | null;
+};
+
+type Comment = {
+  __typename: string;
+  id: string;
+  text?: string | null;
+  taskId?: string | null;
+  createdAt?: string | null;
 };
 
 type TaskTarget = {
@@ -355,6 +364,24 @@ const StyledFactInput = styled.input`
 /** Очередь состоит из задач, а не из заявок: у заявки нет ни срока, ни
  *  действия. Но заявка на карточке подана крупно, и без подписи непонятно,
  *  что именно надо сделать. */
+const StyledHistory = styled.div`
+  border-top: 1px solid ${themeCssVariables.border.color.light};
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 12px;
+`;
+
+const StyledHistoryRow = styled.div`
+  color: ${themeCssVariables.font.color.secondary};
+  font-size: ${themeCssVariables.font.size.sm};
+  line-height: 1.4;
+`;
+
+const StyledHistoryWhen = styled.span`
+  color: ${themeCssVariables.font.color.tertiary};
+`;
+
 const StyledTodoLabel = styled.div`
   color: ${themeCssVariables.font.color.tertiary};
   font-size: ${themeCssVariables.font.size.xs};
@@ -650,6 +677,11 @@ export const WorkQueuePage = () => {
     objectNameSingular: 'taskTarget',
     limit: 500,
   });
+  const { records: comments, refetch: refetchComments } =
+    useFindManyRecords<Comment>({
+      objectNameSingular: 'taskComment',
+      limit: 500,
+    });
   const { records: leads, refetch: refetchLeads } = useFindManyRecords<Lead>({
     objectNameSingular: 'opportunity',
     limit: 500,
@@ -722,6 +754,42 @@ export const WorkQueuePage = () => {
     return leads.find((item) => item.id === leadId) ?? null;
   }, [task, targets, leads]);
 
+  /** Что уже делали по этой заявке: закрытые задачи с результатом и
+   *  подписью. Без этого брокер звонит вслепую — не зная, что коллега
+   *  вчера уже не дозвонился дважды. */
+  const history = useMemo(() => {
+    if (!lead) return [];
+    const sameLead = new Set(
+      targets
+        .filter((item) => item.targetOpportunityId === lead.id)
+        .map((item) => item.taskId),
+    );
+    const textByTask = new Map(
+      comments
+        .filter((item) => item.taskId && item.text)
+        .map((item) => [item.taskId, item.text as string]),
+    );
+    return tasks
+      .filter((item) => sameLead.has(item.id) && isDefined(item.outcome))
+      .sort((a, b) =>
+        (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''),
+      )
+      .slice(0, 4)
+      .map((item) => ({
+        id: item.id,
+        when: item.updatedAt
+          ? new Date(item.updatedAt).toLocaleDateString('ru-RU', {
+              day: 'numeric',
+              month: 'short',
+            })
+          : '',
+        label:
+          OUTCOMES.find((outcome) => outcome.value === item.outcome)?.label ??
+          item.outcome,
+        note: textByTask.get(item.id) ?? null,
+      }));
+  }, [lead, targets, tasks, comments]);
+
   const finish = async () => {
     setPending(null);
     setStep('note');
@@ -731,7 +799,12 @@ export const WorkQueuePage = () => {
     // Обновляем все три списка, а не только задачи: у новой задачи своя
     // связка с заявкой, и без неё карточка показывала «Заявка недоступна»
     // на собственном же лиде.
-    await Promise.all([refetchTasks(), refetchTargets(), refetchLeads()]);
+    await Promise.all([
+      refetchTasks(),
+      refetchTargets(),
+      refetchLeads(),
+      refetchComments(),
+    ]);
     setLeaving(false);
     setBusy(false);
   };
@@ -1047,6 +1120,19 @@ export const WorkQueuePage = () => {
             onSave={(comment) => saveLead({ comment })}
           />
         </StyledFacts>
+
+        {history.length > 0 && (
+          <StyledHistory>
+            <StyledTodoLabel>Что уже было</StyledTodoLabel>
+            {history.map((item) => (
+              <StyledHistoryRow key={item.id}>
+                <StyledHistoryWhen>{item.when}</StyledHistoryWhen>{' '}
+                {item.label}
+                {item.note ? ` — «${item.note}»` : ''}
+              </StyledHistoryRow>
+            ))}
+          </StyledHistory>
+        )}
 
         <StyledTodo>
           <StyledTodoLabel>Что сделать</StyledTodoLabel>
