@@ -101,16 +101,61 @@ const StyledPage = styled.div`
   padding: 16px;
 `;
 
-const StyledCard = styled.div`
+const StyledStack = styled.div`
+  max-width: 460px;
+  position: relative;
+  width: 100%;
+`;
+
+/** Край следующей карточки: видно, что работа не кончилась на этой. */
+const StyledGhost = styled.div`
+  background: ${themeCssVariables.background.primary};
+  border: 1px solid ${themeCssVariables.border.color.light};
+  border-radius: 12px;
+  height: 100%;
+  left: 0;
+  opacity: 0.55;
+  position: absolute;
+  top: 10px;
+  transform: scale(0.96);
+  width: 100%;
+`;
+
+const StyledCard = styled.div<{ isLeaving: boolean }>`
   background: ${themeCssVariables.background.primary};
   border: 1px solid ${themeCssVariables.border.color.light};
   border-radius: 12px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 460px;
+  opacity: ${({ isLeaving }) => (isLeaving ? 0 : 1)};
   padding: 20px;
+  position: relative;
+  transform: ${({ isLeaving }) =>
+    isLeaving ? 'translateX(-110%) rotate(-5deg)' : 'none'};
+  transition:
+    transform 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 220ms ease;
   width: 100%;
+  z-index: 1;
+
+  animation: work-card-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes work-card-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    transition: none;
+  }
 `;
 
 const StyledWhose = styled.div`
@@ -435,6 +480,7 @@ export const WorkQueuePage = () => {
   const [reason, setReason] = useState('');
   const [showSnooze, setShowSnooze] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const { records: tasks, refetch: refetchTasks } = useFindManyRecords<Task>({
     objectNameSingular: 'task',
@@ -497,6 +543,7 @@ export const WorkQueuePage = () => {
     setReason('');
     setShowSnooze(false);
     await refetchTasks();
+    setLeaving(false);
     setBusy(false);
   };
 
@@ -511,6 +558,7 @@ export const WorkQueuePage = () => {
     }
 
     setBusy(true);
+    setLeaving(true);
     if (value === 'REFUSED' && reason.trim() && lead) {
       await updateOneRecord({
         idToUpdate: lead.id,
@@ -541,6 +589,7 @@ export const WorkQueuePage = () => {
   const snooze = async (option: (typeof SNOOZES)[number]) => {
     if (!task || busy) return;
     setBusy(true);
+    setLeaving(true);
     await updateOneRecord({
       idToUpdate: task.id,
       // Только срок. «Переносов» закрыто на запись всем ролям и считается
@@ -554,7 +603,7 @@ export const WorkQueuePage = () => {
   if (!task) {
     return (
       <StyledPage>
-        <StyledCard>
+        <StyledCard isLeaving={false}>
           {myName && <StyledWhose>Моя работа · {myName}</StyledWhose>}
           <StyledDone>
             На сегодня всё.
@@ -576,7 +625,9 @@ export const WorkQueuePage = () => {
 
   return (
     <StyledPage>
-      <StyledCard>
+      <StyledStack>
+        {queue.length > 1 && <StyledGhost />}
+        <StyledCard key={task.id} isLeaving={leaving}>
         {myName && <StyledWhose>Моя работа · {myName}</StyledWhose>}
 
         <StyledProgress>
@@ -741,7 +792,8 @@ export const WorkQueuePage = () => {
             </StyledSnooze>
           </StyledButtons>
         )}
-      </StyledCard>
+        </StyledCard>
+      </StyledStack>
     </StyledPage>
   );
 };
