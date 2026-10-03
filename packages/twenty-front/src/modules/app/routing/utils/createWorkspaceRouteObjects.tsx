@@ -68,6 +68,11 @@ const TaskBoardPage = lazy(() =>
     default: module.TaskBoardPage,
   })),
 );
+const WorkQueuePage = lazy(() =>
+  import('~/pages/work-queue/WorkQueuePage').then((module) => ({
+    default: module.WorkQueuePage,
+  })),
+);
 
 const NotFound = lazy(() =>
   import('~/pages/not-found/NotFound').then((module) => ({
@@ -183,6 +188,17 @@ export const createWorkspaceRouteObjects = ({
       element: (
         <LazyRoute>
           <TeamStructurePage />
+        </LazyRoute>
+      ),
+      handle: { workspaceSurfaces: MAIN_AND_SIDE_PANEL },
+    },
+    {
+      // Очередь брокера: одна задача на экране, без навигации.
+      // Стартовая страница, иначе продажники до неё просто не дойдут.
+      path: '/work',
+      element: (
+        <LazyRoute>
+          <WorkQueuePage />
         </LazyRoute>
       ),
       handle: { workspaceSurfaces: MAIN_AND_SIDE_PANEL },
