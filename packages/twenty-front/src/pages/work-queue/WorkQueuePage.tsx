@@ -113,6 +113,12 @@ const StyledCard = styled.div`
   width: 100%;
 `;
 
+const StyledWhose = styled.div`
+  color: ${themeCssVariables.font.color.tertiary};
+  font-size: ${themeCssVariables.font.size.sm};
+  margin-bottom: -8px;
+`;
+
 const StyledProgress = styled.div`
   color: ${themeCssVariables.font.color.tertiary};
   font-size: ${themeCssVariables.font.size.sm};
@@ -472,6 +478,11 @@ export const WorkQueuePage = () => {
     ).length;
   }, [tasks, me?.id]);
 
+  const myName = [me?.name?.firstName, me?.name?.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
   const task = queue[0];
 
   const lead = useMemo(() => {
@@ -544,6 +555,7 @@ export const WorkQueuePage = () => {
     return (
       <StyledPage>
         <StyledCard>
+          {myName && <StyledWhose>Моя работа · {myName}</StyledWhose>}
           <StyledDone>
             На сегодня всё.
             <br />
@@ -565,6 +577,8 @@ export const WorkQueuePage = () => {
   return (
     <StyledPage>
       <StyledCard>
+        {myName && <StyledWhose>Моя работа · {myName}</StyledWhose>}
+
         <StyledProgress>
           Осталось {queue.length} из {total}
           <StyledBar>
