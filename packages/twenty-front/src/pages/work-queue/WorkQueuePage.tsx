@@ -382,10 +382,9 @@ export const WorkQueuePage = () => {
     setBusy(true);
     await updateOneRecord({
       idToUpdate: task.id,
-      updateOneRecordInput: {
-        scheduledAt: snoozeUntil(option),
-        snoozeCount: (task.snoozeCount ?? 0) + 1,
-      },
+      // Только срок. «Переносов» закрыто на запись всем ролям и считается
+      // триггером: пришли мы его — сервер отклонит мутацию целиком.
+      updateOneRecordInput: { scheduledAt: snoozeUntil(option) },
       objectNameSingular: 'task',
     });
     await finish();
@@ -432,7 +431,7 @@ export const WorkQueuePage = () => {
         </StyledProgress>
 
         <div>
-          <StyledName>{lead?.name || 'Без имени'}</StyledName>
+          <StyledName>{lead?.name || 'Заявка недоступна'}</StyledName>
           <StyledSub isLate={isLate}>
             {[CHANNELS[lead?.channel ?? ''] ?? lead?.channel, waitingFor(lead?.createdAt)]
               .filter(Boolean)
@@ -465,7 +464,12 @@ export const WorkQueuePage = () => {
           )}
         </StyledTodo>
 
-        {askReason ? (
+        {!lead ? (
+          <StyledWants>
+            Эта задача стоит на заявке другой команды — её не видно по правам.
+            Скажите старшему, он передаст задачу владельцу заявки.
+          </StyledWants>
+        ) : askReason ? (
           <StyledReasonBox>
             <StyledHint>Почему отказ? Без этого заявку не закрыть.</StyledHint>
             <StyledInput
