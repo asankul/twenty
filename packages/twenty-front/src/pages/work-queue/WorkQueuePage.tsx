@@ -1,6 +1,6 @@
 import { styled } from '@linaria/react';
 import type React from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { currentWorkspaceMemberState } from '@/auth/states/currentWorkspaceMemberState';
@@ -56,6 +56,9 @@ type Lead = {
   name?: string | null;
   channel?: string | null;
   contactValue?: string | null;
+  stage?: string | null;
+  ownerId?: string | null;
+  leadSource?: string | null;
   district?: string | null;
   rooms?: number | null;
   comment?: string | null;
@@ -102,6 +105,28 @@ const atDay = (days: number) => {
   return when.toISOString();
 };
 
+/** Значения совпадают с теми, что в базе: подписи брокер увидит и в карточке. */
+const NEW_CHANNELS = [
+  { value: 'PHONE', label: 'Звонок' },
+  { value: 'INSTAGRAM', label: 'Инстаграм' },
+  { value: 'WHATSAPP', label: 'Вотсап' },
+  { value: 'TELEGRAM', label: 'Телеграм' },
+  { value: 'EMAIL', label: 'Почта' },
+] as const;
+
+const NEW_SOURCES = [
+  { value: 'SRC_2', label: 'Звонок' },
+  { value: 'SRC_3', label: 'Сайт' },
+  { value: 'SRC_4', label: 'Рекомендация' },
+  { value: 'SRC_6', label: 'Пришёл в офис' },
+  { value: 'SRC_7', label: '2GIS' },
+  { value: 'SRC_5', label: 'Наружная реклама' },
+  { value: 'SRC_8', label: 'Другое' },
+] as const;
+
+/** Норматив первого касания — тот же, что у заявок из чата. */
+const FIRST_TOUCH_MINUTES = 15;
+
 const CHANNELS: Record<string, string> = {
   INSTAGRAM: 'Instagram',
   WHATSAPP: 'WhatsApp',
@@ -111,7 +136,9 @@ const CHANNELS: Record<string, string> = {
 };
 
 const StyledPage = styled.div`
-  align-items: flex-start;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
   background: ${themeCssVariables.background.secondary};
   display: flex;
   flex: 1;
@@ -325,6 +352,18 @@ const StyledFactInput = styled.input`
   text-align: right;
 `;
 
+const StyledDeadline = styled.div<{ late: boolean }>`
+  background: ${({ late }) =>
+    late ? 'var(--t-tag-background-red)' : 'var(--t-tag-background-gray)'};
+  border-radius: 6px;
+  color: ${({ late }) => (late ? 'var(--t-tag-text-red)' : 'var(--t-tag-text-gray)')};
+  display: inline-block;
+  font-size: ${themeCssVariables.font.size.sm};
+  font-weight: ${themeCssVariables.font.weight.medium};
+  margin-top: 6px;
+  padding: 3px 8px;
+`;
+
 const StyledTodo = styled.div`
   border-top: 1px solid ${themeCssVariables.border.color.light};
   font-size: 18px;
@@ -402,12 +441,60 @@ const StyledHint = styled.div`
   font-size: ${themeCssVariables.font.size.sm};
 `;
 
+const StyledAddLink = styled.button`
+  background: transparent;
+  border: 0;
+  color: ${themeCssVariables.font.color.tertiary};
+  cursor: pointer;
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.md};
+  min-height: 40px;
+  text-decoration: underline;
+`;
+
+const StyledFormRow = styled.label`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const StyledFormLabel = styled.span`
+  color: ${themeCssVariables.font.color.tertiary};
+  font-size: ${themeCssVariables.font.size.sm};
+`;
+
+const StyledSelect = styled.select`
+  background: ${themeCssVariables.background.primary};
+  border: 1px solid ${themeCssVariables.border.color.medium};
+  border-radius: 8px;
+  color: ${themeCssVariables.font.color.primary};
+  font-family: inherit;
+  font-size: 16px;
+  min-height: 44px;
+  padding: 0 8px;
+`;
+
 const StyledDone = styled.div`
   color: ${themeCssVariables.font.color.secondary};
   font-size: 18px;
   padding: 48px 0;
   text-align: center;
 `;
+
+/** Срок самой задачи: сколько осталось или на сколько просрочена. */
+const deadlineText = (dueAt?: string | null) => {
+  if (!dueAt) return null;
+  const minutes = Math.round((new Date(dueAt).getTime() - Date.now()) / 60000);
+  const late = minutes < 0;
+  const left = Math.abs(minutes);
+  const amount =
+    left < 60
+      ? `${left} мин`
+      : left < 1440
+        ? `${Math.round(left / 60)} ч`
+        : `${Math.round(left / 1440)} дн`;
+  return { late, text: late ? `просрочено на ${amount}` : `осталось ${amount}` };
+};
 
 const waitingFor = (since?: string | null) => {
   if (!since) return '';
@@ -464,9 +551,16 @@ const Fact = ({
 }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+  // Escape убирает поле, и браузер может на этом выстрелить «ушёл из поля».
+  // Без флага отмена всё равно сохраняла бы набранное.
+  const cancelled = useRef(false);
 
   const commit = () => {
     setEditing(false);
+    if (cancelled.current) {
+      cancelled.current = false;
+      return;
+    }
     const trimmed = draft.trim();
     if (trimmed !== '') onSave?.(trimmed);
   };
@@ -484,7 +578,10 @@ const Fact = ({
           onBlur={commit}
           onKeyDown={(event) => {
             if (event.key === 'Enter') event.currentTarget.blur();
-            if (event.key === 'Escape') setEditing(false);
+            if (event.key === 'Escape') {
+              cancelled.current = true;
+              setEditing(false);
+            }
           }}
         />
       ) : (
@@ -494,6 +591,7 @@ const Fact = ({
           canEdit={Boolean(onSave)}
           onClick={() => {
             if (!onSave) return;
+            cancelled.current = false;
             setDraft(value ?? '');
             setEditing(true);
           }}
@@ -514,6 +612,23 @@ export const WorkQueuePage = () => {
   const [showSnooze, setShowSnooze] = useState(false);
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  // Срок должен тикать, а не замирать на момент открытия: брокер держит
+  // экран открытым весь день, и «осталось 12 мин» через час уже враньё.
+  const [, setTick] = useState(0);
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState({
+    name: '',
+    phone: '',
+    channel: 'PHONE',
+    leadSource: 'SRC_2',
+    budget: '',
+    comment: '',
+  });
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const { records: tasks, refetch: refetchTasks } = useFindManyRecords<Task>({
     objectNameSingular: 'task',
@@ -531,6 +646,15 @@ export const WorkQueuePage = () => {
   const { updateOneRecord } = useUpdateOneRecord();
   const { createOneRecord: createComment } = useCreateOneRecord({
     objectNameSingular: 'taskComment',
+  });
+  const { createOneRecord: createLead } = useCreateOneRecord<Lead>({
+    objectNameSingular: 'opportunity',
+  });
+  const { createOneRecord: createTask } = useCreateOneRecord<Task>({
+    objectNameSingular: 'task',
+  });
+  const { createOneRecord: createTarget } = useCreateOneRecord({
+    objectNameSingular: 'taskTarget',
   });
 
   const queue = useMemo(() => {
@@ -642,6 +766,55 @@ export const WorkQueuePage = () => {
     await refetchLeads();
   };
 
+  /** Заявка со звонка: заводим её вместе с задачей первого касания, иначе
+   *  она не попадёт ни в очередь, ни под норматив. Срок по SLA проставит база. */
+  const submitNew = async () => {
+    const name = draft.name.trim();
+    if (name === '' || busy) return;
+    setBusy(true);
+
+    const amount = Number(draft.budget.replace(/[^0-9]/g, ''));
+    const phone = draft.phone.replace(/[^0-9+]/g, '');
+
+    const lead = await createLead({
+      name,
+      stage: 'NEW',
+      channel: draft.channel,
+      leadSource: draft.leadSource,
+      ownerId: me?.id,
+      ...(phone
+        ? { phone: { primaryPhoneNumber: phone, primaryPhoneCallingCode: '+996' } }
+        : {}),
+      ...(amount
+        ? { budgetMax: { amountMicros: amount * 1_000_000, currencyCode: 'KGS' } }
+        : {}),
+      ...(draft.comment.trim() ? { comment: draft.comment.trim() } : {}),
+    });
+
+    const created = await createTask({
+      title: `Первый контакт — ${name}`,
+      status: 'TODO',
+      assigneeId: me?.id,
+      dueAt: new Date(Date.now() + FIRST_TOUCH_MINUTES * 60000).toISOString(),
+    });
+
+    if (lead?.id && created?.id) {
+      await createTarget({ taskId: created.id, targetOpportunityId: lead.id });
+    }
+
+    setDraft({
+      name: '',
+      phone: '',
+      channel: 'PHONE',
+      leadSource: 'SRC_2',
+      budget: '',
+      comment: '',
+    });
+    setCreating(false);
+    await Promise.all([refetchTasks(), refetchTargets(), refetchLeads()]);
+    setBusy(false);
+  };
+
   const snooze = async (option: (typeof SNOOZES)[number]) => {
     if (!task || busy) return;
     setBusy(true);
@@ -656,6 +829,97 @@ export const WorkQueuePage = () => {
     await finish();
   };
 
+  const newLeadForm = (
+    <StyledCard isLeaving={false}>
+      {myName && <StyledWhose>Новая заявка · {myName}</StyledWhose>}
+      <StyledFormRow>
+        <StyledFormLabel>Имя клиента</StyledFormLabel>
+        <StyledInput
+          autoFocus
+          value={draft.name}
+          placeholder="Как зовут"
+          onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+        />
+      </StyledFormRow>
+      <StyledFormRow>
+        <StyledFormLabel>Телефон</StyledFormLabel>
+        <StyledInput
+          value={draft.phone}
+          inputMode="tel"
+          placeholder="555 123456"
+          onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
+        />
+      </StyledFormRow>
+      <StyledFormRow>
+        <StyledFormLabel>Откуда пришёл</StyledFormLabel>
+        <StyledSelect
+          value={draft.leadSource}
+          onChange={(event) =>
+            setDraft({ ...draft, leadSource: event.target.value })
+          }
+        >
+          {NEW_SOURCES.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </StyledSelect>
+      </StyledFormRow>
+      <StyledFormRow>
+        <StyledFormLabel>Как связываться</StyledFormLabel>
+        <StyledSelect
+          value={draft.channel}
+          onChange={(event) => setDraft({ ...draft, channel: event.target.value })}
+        >
+          {NEW_CHANNELS.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </StyledSelect>
+      </StyledFormRow>
+      <StyledFormRow>
+        <StyledFormLabel>Бюджет до, сом</StyledFormLabel>
+        <StyledInput
+          value={draft.budget}
+          inputMode="numeric"
+          placeholder="необязательно"
+          onChange={(event) => setDraft({ ...draft, budget: event.target.value })}
+        />
+      </StyledFormRow>
+      <StyledFormRow>
+        <StyledFormLabel>Заметка</StyledFormLabel>
+        <StyledInput
+          value={draft.comment}
+          placeholder="необязательно"
+          onChange={(event) => setDraft({ ...draft, comment: event.target.value })}
+        />
+      </StyledFormRow>
+      <StyledButtons>
+        <StyledSnooze type="button" onClick={() => setCreating(false)}>
+          Отмена
+        </StyledSnooze>
+        <StyledOutcome
+          type="button"
+          disabled={!draft.name.trim() || busy}
+          style={
+            {
+              '--pill-bg': 'var(--t-tag-background-green)',
+              '--pill-fg': 'var(--t-tag-text-green)',
+            } as React.CSSProperties
+          }
+          onClick={submitNew}
+        >
+          Завести
+        </StyledOutcome>
+      </StyledButtons>
+    </StyledCard>
+  );
+
+  if (creating) {
+    return <StyledPage>{newLeadForm}</StyledPage>;
+  }
+
   if (!task) {
     return (
       <StyledPage>
@@ -668,6 +932,9 @@ export const WorkQueuePage = () => {
               ? `Закрыто задач: ${doneToday}.`
               : 'Новые заявки появятся здесь сами.'}
           </StyledDone>
+          <StyledAddLink type="button" onClick={() => setCreating(true)}>
+            Завести заявку со звонка
+          </StyledAddLink>
         </StyledCard>
       </StyledPage>
     );
@@ -771,6 +1038,12 @@ export const WorkQueuePage = () => {
 
         <StyledTodo>
           {task.title || 'Задача'}
+          {(() => {
+            const deadline = deadlineText(task.dueAt);
+            return deadline ? (
+              <StyledDeadline late={deadline.late}>{deadline.text}</StyledDeadline>
+            ) : null;
+          })()}
           {Boolean(task.snoozeCount) && (
             <StyledHint>Откладывали {task.snoozeCount} раз</StyledHint>
           )}
@@ -965,6 +1238,9 @@ export const WorkQueuePage = () => {
         )}
         </StyledCard>
       </StyledStack>
+      <StyledAddLink type="button" onClick={() => setCreating(true)}>
+        Завести заявку со звонка
+      </StyledAddLink>
     </StyledPage>
   );
 };
