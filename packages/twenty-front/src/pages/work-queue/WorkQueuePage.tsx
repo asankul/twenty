@@ -1,6 +1,6 @@
 import { styled } from '@linaria/react';
 import type React from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { currentWorkspaceMemberState } from '@/auth/states/currentWorkspaceMemberState';
@@ -50,6 +50,7 @@ type Task = {
   updatedAt?: string | null;
   snoozeCount?: number | null;
   kind?: string | null;
+  priority?: number | null;
   assigneeId?: string | null;
 };
 
@@ -122,6 +123,22 @@ const inMinutes = (option: { minutes: number; atHour?: number; tomorrow?: boolea
   else when.setMinutes(when.getMinutes() + option.minutes);
   return when.toISOString();
 };
+
+/**
+ * Вес задачи: что показать первым.
+ *
+ * По одному сроку очередь врала. Первое касание, пролежавшее пять дней,
+ * всегда оказывалось выше, чем клиент, который написал минуту назад —
+ * хотя остывший лид ждать может, а живой человек смотрит в экран.
+ *
+ * Сам вес считает база по виду задачи: показ — встреча с человеком,
+ * договор и оплата — деньги на столе, повторный контакт — клиент уже
+ * говорил с нами. Здесь только надбавка за живое ожидание: она зависит
+ * от минуты и в поле её не сохранить.
+ */
+const WAITING_BOOST = 200;
+
+const DEFAULT_WEIGHT = 30;
 
 /** Больше трёх попыток дозвона — уже не занятой клиент, а вечный лид. */
 const MAX_NO_ANSWER = 3;
@@ -775,6 +792,29 @@ export const WorkQueuePage = () => {
     objectNameSingular: 'taskTarget',
   });
 
+  const leadByTask = useMemo(() => {
+    const leadById = new Map(leads.map((item) => [item.id, item]));
+    return new Map(
+      targets
+        .filter((item) => item.taskId && item.targetOpportunityId)
+        .map((item) => [
+          item.taskId as string,
+          leadById.get(item.targetOpportunityId as string),
+        ]),
+    );
+  }, [targets, leads]);
+
+  const weigh = useCallback(
+    (item: Task) => {
+      const base = item.priority ?? DEFAULT_WEIGHT;
+      const waited = minutesSince(leadByTask.get(item.id)?.waitingSince);
+      const waiting =
+        waited !== null && waited < JUST_WROTE_MINUTES ? WAITING_BOOST : 0;
+      return base + waiting;
+    },
+    [leadByTask],
+  );
+
   const queue = useMemo(() => {
     const now = Date.now();
     return tasks
@@ -785,11 +825,13 @@ export const WorkQueuePage = () => {
           (!task.scheduledAt || new Date(task.scheduledAt).getTime() <= now),
       )
       .sort((a, b) => {
+        const byWeight = weigh(b) - weigh(a);
+        if (byWeight !== 0) return byWeight;
         const left = a.dueAt ? new Date(a.dueAt).getTime() : Number.MAX_SAFE_INTEGER;
         const right = b.dueAt ? new Date(b.dueAt).getTime() : Number.MAX_SAFE_INTEGER;
         return left - right;
       });
-  }, [tasks, me?.id]);
+  }, [tasks, me?.id, weigh]);
 
   const doneToday = useMemo(() => {
     const dayStart = new Date().setHours(0, 0, 0, 0);
