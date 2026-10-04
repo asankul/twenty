@@ -5,9 +5,11 @@ import { themeCssVariables } from 'twenty-ui/theme';
 
 import { currentWorkspaceMemberState } from '@/auth/states/currentWorkspaceMemberState';
 import {
-  DATE_PROMPT,
-  FLOW,
+  DAY_WHEN,
+  RETRY_WHEN,
   flowFor,
+  outcomeIn,
+  outcomeLabel,
 } from '@/activities/tasks/constants/TaskFlow';
 import { useCreateOneRecord } from '@/object-record/hooks/useCreateOneRecord';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
@@ -102,16 +104,7 @@ const SNOOZES = [
   { label: 'Завтра утром', hours: 0, atHour: 10, tomorrow: true },
 ] as const;
 
-/** Когда показ. Время по умолчанию дневное — показы редко ставят ночью. */
-/** Больше трёх попыток дозвона — уже не занятой клиент, а вечный лид. */
-const MAX_NO_ANSWER = 3;
-
-const SHOW_DAYS = [
-  { label: 'Сегодня', days: 0 },
-  { label: 'Завтра', days: 1 },
-  { label: 'Послезавтра', days: 2 },
-] as const;
-
+/** Время по умолчанию дневное — показы редко ставят ночью. */
 const atDay = (days: number) => {
   const when = new Date();
   when.setDate(when.getDate() + days);
@@ -119,6 +112,21 @@ const atDay = (days: number) => {
   if (when.getTime() < Date.now()) when.setHours(new Date().getHours() + 2, 0, 0, 0);
   return when.toISOString();
 };
+
+/** Через сколько минут от сейчас, с поправкой на «завтра утром». */
+const inMinutes = (option: { minutes: number; atHour?: number; tomorrow?: boolean }) => {
+  const when = new Date();
+  if (option.tomorrow === true) when.setDate(when.getDate() + 1);
+  if (option.atHour !== undefined) when.setHours(option.atHour, 0, 0, 0);
+  else when.setMinutes(when.getMinutes() + option.minutes);
+  return when.toISOString();
+};
+
+/** Больше трёх попыток дозвона — уже не занятой клиент, а вечный лид. */
+const MAX_NO_ANSWER = 3;
+
+/** Норматив первого касания — тот же, что у заявок из чата. */
+const FIRST_TOUCH_MINUTES = 15;
 
 /** Значения совпадают с теми, что в базе: подписи брокер увидит и в карточке. */
 const NEW_CHANNELS = [
@@ -138,9 +146,6 @@ const NEW_SOURCES = [
   { value: 'SRC_5', label: 'Наружная реклама' },
   { value: 'SRC_8', label: 'Другое' },
 ] as const;
-
-/** Норматив первого касания — тот же, что у заявок из чата. */
-const FIRST_TOUCH_MINUTES = 15;
 
 const CHANNELS: Record<string, string> = {
   INSTAGRAM: 'Instagram',
@@ -700,7 +705,7 @@ const Fact = ({
 export const WorkQueuePage = () => {
   const me = useAtomStateValue(currentWorkspaceMemberState) as Member | null;
   const [pending, setPending] = useState<string | null>(null);
-  const [step, setStep] = useState<'date' | 'need' | 'note'>('note');
+  const [step, setStep] = useState<'when' | 'need' | 'note' | 'pick'>('note');
   const [nextAt, setNextAt] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [showSnooze, setShowSnooze] = useState(false);
@@ -709,6 +714,10 @@ export const WorkQueuePage = () => {
   // Срок должен тикать, а не замирать на момент открытия: брокер держит
   // экран открытым весь день, и «осталось 12 мин» через час уже враньё.
   const [, setTick] = useState(0);
+  // Карточка, которую брокер держит перед глазами. Очередь подтягивается
+  // сама, но подменять карточку под руками нельзя: он читает переписку
+  // и вот-вот нажмёт результат.
+  const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState({
     name: '',
@@ -743,6 +752,16 @@ export const WorkQueuePage = () => {
   });
 
   const { updateOneRecord } = useUpdateOneRecord();
+
+  const idle = !busy && pending === null && !creating && !showSnooze;
+
+  useEffect(() => {
+    if (!idle) return;
+    const id = setInterval(() => {
+      void Promise.all([refetchTasks(), refetchTargets(), refetchLeads()]);
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [idle, refetchTasks, refetchTargets, refetchLeads]);
   const { createOneRecord: createComment } = useCreateOneRecord({
     objectNameSingular: 'taskComment',
   });
@@ -788,7 +807,12 @@ export const WorkQueuePage = () => {
     .join(' ')
     .trim();
 
-  const task = queue[0];
+  const task =
+    queue.find((item) => item.id === pinnedId) ?? queue[0];
+
+  useEffect(() => {
+    if (task?.id && task.id !== pinnedId) setPinnedId(task.id);
+  }, [task?.id, pinnedId]);
 
   // Сколько раз уже не дозвонились по этой заявке. После третьей попытки
   // кнопку убираем: иначе лид возвращается месяцами и живёт вечно.
@@ -849,16 +873,14 @@ export const WorkQueuePage = () => {
             })
           : '',
         label:
-          Object.values(FLOW)
-            .flat()
-            .find((outcome) => outcome.value === item.outcome)?.label ??
-          item.outcome ??
+          outcomeLabel(item.outcome) ??
           `${item.title ?? 'Задача'} · ${CLOSED_LABEL[item.status ?? ''] ?? 'закрыта'}`,
         note: textByTask.get(item.id) ?? null,
       }));
   }, [lead, targets, tasks, comments]);
 
   const finish = async () => {
+    setPinnedId(null);
     setPending(null);
     setStep('note');
     setNextAt(null);
@@ -879,9 +901,23 @@ export const WorkQueuePage = () => {
 
   /** Результат всегда подписывается: иначе через месяц никто не вспомнит,
    *  о чём говорили, и история сделки превращается в набор цветных меток. */
-  const confirm = async () => {
-    const text = note.trim();
-    if (!task || !pending || text === '' || busy) return;
+  /** Закрыть задачу исходом.
+   *
+   *  Текст берём либо набранный, либо подставленный самим исходом: у «не
+   *  отвечает» печатать нечего, и просить «коротко, о чём договорились»
+   *  там было бы издевательством. Срок — либо выбранный на шаге «когда»,
+   *  либо ранее названная дата.
+   */
+  const confirmWith = async (
+    whenIso: string | null,
+    noteOverride: string | null,
+  ) => {
+    if (!task || !pending || busy) return;
+
+    const text = (noteOverride ?? note).trim();
+    if (text === '') return;
+
+    const when = whenIso ?? nextAt;
 
     setBusy(true);
     setLeaving(true);
@@ -900,12 +936,14 @@ export const WorkQueuePage = () => {
       idToUpdate: task.id,
       updateOneRecordInput: {
         outcome: pending,
-        ...(nextAt ? { nextAt } : {}),
+        ...(when ? { nextAt: when } : {}),
       },
       objectNameSingular: 'task',
     });
     await finish();
   };
+
+  const confirm = () => void confirmWith(null, null);
 
   /** Правка заявки прямо из карточки: бюджет и район заполняются во время
    *  разговора или не заполняются никогда. */
@@ -1266,33 +1304,78 @@ export const WorkQueuePage = () => {
             Эта задача стоит на заявке другой команды — её не видно по правам.
             Скажите старшему, он передаст задачу владельцу заявки.
           </StyledWants>
-        ) : pending && step === 'date' ? (
+        ) : pending && step === 'when' ? (
           <StyledReasonBox>
-            <StyledHint>{DATE_PROMPT[pending] ?? 'На когда?'}</StyledHint>
+            <StyledHint>{outcomeIn(task.kind, pending)?.prompt}</StyledHint>
             <StyledButtons>
-              {SHOW_DAYS.map((day) => (
-                <StyledSnooze
-                  key={day.label}
-                  type="button"
-                  style={{ gridColumn: 'span 1' }}
-                  onClick={() => {
-                    setNextAt(atDay(day.days));
-                    setStep('note');
-                  }}
-                >
-                  {day.label}
-                </StyledSnooze>
-              ))}
+              {outcomeIn(task.kind, pending)?.ask === 'when'
+                ? RETRY_WHEN.map((option) => (
+                    <StyledSnooze
+                      key={option.label}
+                      type="button"
+                      style={{ gridColumn: 'span 1' }}
+                      disabled={busy}
+                      onClick={() => {
+                        // Печатать нечего: подпись пишется сама, и задача
+                        // закрывается сразу — лишний экран тут только мешает.
+                        const auto = outcomeIn(task.kind, pending)?.autoNote;
+                        void confirmWith(
+                          inMinutes(option),
+                          `${auto ?? 'Не ответил'} — ${option.label.toLowerCase()}`,
+                        );
+                      }}
+                    >
+                      {option.label}
+                    </StyledSnooze>
+                  ))
+                : DAY_WHEN.map((day) => (
+                    <StyledSnooze
+                      key={day.label}
+                      type="button"
+                      style={{ gridColumn: 'span 1' }}
+                      onClick={() => {
+                        setNextAt(atDay(day.days));
+                        setStep('note');
+                      }}
+                    >
+                      {day.label}
+                    </StyledSnooze>
+                  ))}
               <StyledSnooze type="button" style={{ gridColumn: 'span 1' }}>
                 <StyledDayInput
                   type="datetime-local"
                   onChange={(event) => {
                     if (!event.target.value) return;
-                    setNextAt(new Date(event.target.value).toISOString());
+                    const when = new Date(event.target.value).toISOString();
+                    if (outcomeIn(task.kind, pending)?.ask === 'when') {
+                      const auto = outcomeIn(task.kind, pending)?.autoNote;
+                      void confirmWith(when, auto ?? 'Не ответил');
+                      return;
+                    }
+                    setNextAt(when);
                     setStep('note');
                   }}
                 />
               </StyledSnooze>
+              <StyledSnooze type="button" onClick={() => setPending(null)}>
+                Назад
+              </StyledSnooze>
+            </StyledButtons>
+          </StyledReasonBox>
+        ) : pending && step === 'pick' ? (
+          <StyledReasonBox>
+            <StyledHint>{outcomeIn(task.kind, pending)?.prompt}</StyledHint>
+            <StyledButtons>
+              {(outcomeIn(task.kind, pending)?.choices ?? []).map((choice) => (
+                <StyledSnooze
+                  key={choice}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void confirmWith(null, choice)}
+                >
+                  {choice}
+                </StyledSnooze>
+              ))}
               <StyledSnooze type="button" onClick={() => setPending(null)}>
                 Назад
               </StyledSnooze>
@@ -1340,7 +1423,10 @@ export const WorkQueuePage = () => {
                     '--pill-fg': 'var(--t-tag-text-yellow)',
                   } as React.CSSProperties
                 }
-                onClick={() => setStep('note')}
+                onClick={() => {
+                  const ask = outcomeIn(task.kind, pending)?.ask;
+                  setStep(ask === 'when' || ask === 'both' ? 'when' : 'note');
+                }}
               >
                 Дальше
               </StyledOutcome>
@@ -1383,17 +1469,12 @@ export const WorkQueuePage = () => {
               </StyledFacts>
             )}
             <StyledHint>
-              {flowFor(task.kind).find((item) => item.value === pending)?.label}.
-              Что получилось? Без этого задачу не закрыть.
+              {outcomeIn(task.kind, pending)?.prompt}
             </StyledHint>
             <StyledInput
               autoFocus
               value={note}
-              placeholder={
-                pending === 'REFUSED'
-                  ? 'Дорого, купил в другом месте, передумал…'
-                  : 'Коротко: о чём договорились'
-              }
+              placeholder={outcomeIn(task.kind, pending)?.placeholder}
               onChange={(event) => setNote(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') confirm();
@@ -1468,14 +1549,18 @@ export const WorkQueuePage = () => {
                   setPending(outcome.value);
                   // Показ без даты бессмыслен, а «думает» без бюджета
                   // и района не отличить от «ничего не узнал».
-                  if (outcome.needsDate === true) {
-                    setStep('date');
-                  } else if (
+                  if (
                     outcome.needsInfo === true &&
                     !lead?.budgetMax?.amountMicros &&
                     !lead?.district
                   ) {
                     setStep('need');
+                  } else if (outcome.ask === 'when') {
+                    setStep('when');
+                  } else if (outcome.ask === 'both') {
+                    setStep('when');
+                  } else if (outcome.ask === 'pick') {
+                    setStep('pick');
                   } else {
                     setStep('note');
                   }
