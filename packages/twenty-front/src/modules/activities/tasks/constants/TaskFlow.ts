@@ -118,10 +118,37 @@ export const CONTACT_FLOW: Outcome[] = [
   },
 ];
 
+export const MANUAL_FLOW: Outcome[] = [
+  {
+    value: 'COMPLETED',
+    label: 'Сделал',
+    color: 'green',
+    ask: 'note',
+    prompt: 'Что сделал?',
+    placeholder: 'Коротко, для истории',
+  },
+  {
+    value: 'DELAYED',
+    label: 'Перенести',
+    color: 'orange',
+    ask: 'both',
+    prompt: 'На когда перенести?',
+    placeholder: 'Почему переносится',
+  },
+  {
+    value: 'DROPPED',
+    label: 'Отменить',
+    color: 'gray',
+    ask: 'pick',
+    prompt: 'Почему отменяем?',
+    choices: ['Больше не нужно', 'Сделал кто-то другой', 'Завёл по ошибке', OTHER_CHOICE],
+  },
+];
+
 export const FLOW: Record<string, Outcome[]> = {
   FIRST_TOUCH: CONTACT_FLOW,
   FOLLOWUP: CONTACT_FLOW,
-  MANUAL: CONTACT_FLOW,
+  MANUAL: MANUAL_FLOW,
   SHOWING: [
     {
       value: 'THINKING',
