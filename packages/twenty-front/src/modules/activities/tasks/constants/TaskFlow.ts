@@ -21,6 +21,10 @@
 
 export type Ask = 'when' | 'note' | 'both' | 'pick';
 
+/** Последний пункт любого списка причин: готовые варианты никогда
+ *  не покрывают всё, и без него список становится клеткой. */
+export const OTHER_CHOICE = 'Другое — напишу сам';
+
 export type Outcome = {
   value: string;
   label: string;
@@ -109,6 +113,7 @@ export const CONTACT_FLOW: Outcome[] = [
       'Спам или реклама',
       'Другой город',
       'Ошибся адресом',
+      OTHER_CHOICE,
     ],
   },
 ];

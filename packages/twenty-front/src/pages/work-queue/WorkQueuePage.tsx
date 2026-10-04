@@ -8,6 +8,7 @@ import {
   DAY_WHEN,
   RETRY_WHEN,
   flowFor,
+  OTHER_CHOICE,
   outcomeIn,
   outcomeLabel,
 } from '@/activities/tasks/constants/TaskFlow';
@@ -514,14 +515,12 @@ const StyledInput = styled.input`
 
 /** Нативный выбор даты внутри кнопки: своего календаря не рисуем,
  *  на телефоне системный удобнее и привычнее. */
-const StyledDayInput = styled.input`
-  background: transparent;
-  border: 0;
-  color: ${themeCssVariables.font.color.secondary};
-  font-family: inherit;
-  font-size: ${themeCssVariables.font.size.sm};
-  outline: none;
-  width: 100%;
+const StyledHiddenDay = styled.input`
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  width: 0;
 `;
 
 const StyledHint = styled.div`
@@ -718,6 +717,7 @@ export const WorkQueuePage = () => {
   // сама, но подменять карточку под руками нельзя: он читает переписку
   // и вот-вот нажмёт результат.
   const [pinnedId, setPinnedId] = useState<string | null>(null);
+  const dayInputRef = useRef<HTMLInputElement>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState({
     name: '',
@@ -1341,8 +1341,19 @@ export const WorkQueuePage = () => {
                       {day.label}
                     </StyledSnooze>
                   ))}
-              <StyledSnooze type="button" style={{ gridColumn: 'span 1' }}>
-                <StyledDayInput
+              <StyledSnooze
+                type="button"
+                style={{ gridColumn: 'span 1' }}
+                onClick={() => {
+                  const input = dayInputRef.current;
+                  if (!isDefined(input)) return;
+                  if (typeof input.showPicker === 'function') input.showPicker();
+                  else input.focus();
+                }}
+              >
+                Выбрать дату
+                <StyledHiddenDay
+                  ref={dayInputRef}
                   type="datetime-local"
                   onChange={(event) => {
                     if (!event.target.value) return;
@@ -1371,7 +1382,13 @@ export const WorkQueuePage = () => {
                   key={choice}
                   type="button"
                   disabled={busy}
-                  onClick={() => void confirmWith(null, choice)}
+                  onClick={() => {
+                    if (choice === OTHER_CHOICE) {
+                      setStep('note');
+                      return;
+                    }
+                    void confirmWith(null, choice);
+                  }}
                 >
                   {choice}
                 </StyledSnooze>
