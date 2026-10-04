@@ -184,6 +184,14 @@ const CHANNELS: Record<string, string> = {
   EMAIL: 'Почта',
 };
 
+const sameText = (a?: string | null, b?: string | null) =>
+  Boolean(
+    a &&
+    b &&
+    a.replace(/\s+/g, ' ').trim().toLowerCase() ===
+      b.replace(/\s+/g, ' ').trim().toLowerCase(),
+  );
+
 const StyledPage = styled.div`
   align-items: center;
   flex-direction: column;
@@ -192,12 +200,16 @@ const StyledPage = styled.div`
   display: flex;
   flex: 1;
   justify-content: center;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
   padding: 16px;
 `;
 
 const StyledStack = styled.div`
+  display: flex;
+  max-height: 100%;
   max-width: 460px;
+  min-height: 0;
   position: relative;
   width: 100%;
 `;
@@ -223,7 +235,10 @@ const StyledCard = styled.div<{ isLeaving: boolean }>`
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 100%;
+  min-height: 0;
   opacity: ${({ isLeaving }) => (isLeaving ? 0 : 1)};
+  overflow: hidden;
   padding: 16px;
   position: relative;
   transform: ${({ isLeaving }) =>
@@ -370,6 +385,30 @@ const StyledSaidEmpty = styled.div`
   color: ${themeCssVariables.font.color.tertiary};
   font-size: ${themeCssVariables.font.size.md};
   padding: 10px 12px;
+`;
+
+const StyledScroll = styled.div`
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  scrollbar-width: thin;
+`;
+
+/** «Ещё четыре поля» — чтобы пустые строки не занимали пол-экрана. */
+const StyledMoreFacts = styled.button`
+  background: transparent;
+  border: 0;
+  color: ${themeCssVariables.font.color.tertiary};
+  cursor: pointer;
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.md};
+  padding: 6px 0;
+  text-align: left;
 `;
 
 const StyledFacts = styled.div`
@@ -752,6 +791,7 @@ export const WorkQueuePage = () => {
   const [nextAt, setNextAt] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [showSnooze, setShowSnooze] = useState(false);
+  const [showAllFacts, setShowAllFacts] = useState(false);
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
   // Срок должен тикать, а не замирать на момент открытия: брокер держит
@@ -886,6 +926,10 @@ export const WorkQueuePage = () => {
   useEffect(() => {
     if (task?.id && task.id !== pinnedId) setPinnedId(task.id);
   }, [task?.id, pinnedId]);
+
+  useEffect(() => {
+    setShowAllFacts(false);
+  }, [task?.id]);
 
   // Сколько раз уже не дозвонились по этой заявке. После третьей попытки
   // кнопку убираем: иначе лид возвращается месяцами и живёт вечно.
@@ -1257,6 +1301,27 @@ export const WorkQueuePage = () => {
   const leadAgeDays = minutesSince(lead?.createdAt);
   const isOldLead = leadAgeDays !== null && leadAgeDays > 1440;
 
+  // Робот копирует входящее сообщение в заметку, и на карточке один и тот же
+  // текст стоял дважды — в «последнем сообщении» и в «заметке».
+  const noteValue = sameText(lead?.comment, lead?.lastMessage)
+    ? null
+    : lead?.comment || null;
+  // Пустые строки «— вписать» занимали пол-экрана. Телефон остаётся всегда:
+  // без него заявка мёртвая. Остальные прячутся, пока брокер их не раскроет.
+  const canShow = (value: unknown) => showAllFacts || Boolean(value);
+  const hiddenFacts = showAllFacts
+    ? []
+    : (
+        [
+          ['бюджет', lead?.budgetMax?.amountMicros],
+          ['комнаты', lead?.rooms],
+          ['район', lead?.district],
+          ['заметка', noteValue],
+        ] as const
+      )
+        .filter(([, value]) => !value)
+        .map(([label]) => label);
+
   return (
     <StyledPage>
       <StyledStack>
@@ -1294,115 +1359,133 @@ export const WorkQueuePage = () => {
             )}
           </div>
 
-          {phone && (
-            <StyledBigLink href={`tel:${phone}`}>
-              Позвонить {phone}
-            </StyledBigLink>
-          )}
-          {lead?.chatLink?.primaryLinkUrl && (
-            <StyledChatLink
-              href={lead.chatLink.primaryLinkUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Открыть переписку
-            </StyledChatLink>
-          )}
-
-          <div>
-            <StyledTodoLabel>Последнее сообщение клиента</StyledTodoLabel>
-            {lead?.lastMessage ? (
-              <StyledSaid>«{lead.lastMessage}»</StyledSaid>
-            ) : (
-              <StyledSaidEmpty>Клиент ничего не написал</StyledSaidEmpty>
+          <StyledScroll>
+            {phone && (
+              <StyledBigLink href={`tel:${phone}`}>
+                Позвонить {phone}
+              </StyledBigLink>
             )}
-          </div>
-
-          <StyledFacts>
-            <Fact
-              label="Телефон"
-              value={phone}
-              placeholder="0990 88 63 88"
-              onSave={(raw) => {
-                const num = kgPhone(raw);
-                if (!num) return;
-                saveLead({
-                  phone: {
-                    primaryPhoneNumber: num,
-                    primaryPhoneCallingCode: '+996',
-                    primaryPhoneCountryCode: 'KG',
-                  },
-                });
-              }}
-            />
-            <Fact
-              label="Бюджет до"
-              value={money(lead?.budgetMax)}
-              placeholder="сом"
-              onSave={(raw) => {
-                const amount = Number(raw.replace(/[^0-9]/g, ''));
-                if (!amount) return;
-                saveLead({
-                  budgetMax: {
-                    amountMicros: amount * 1_000_000,
-                    currencyCode: lead?.budgetMax?.currencyCode ?? 'KGS',
-                  },
-                });
-              }}
-            />
-            <Fact
-              label="Комнат"
-              value={lead?.rooms ? String(lead.rooms) : null}
-              placeholder="2"
-              onSave={(raw) => {
-                const rooms = Number(raw.replace(/[^0-9]/g, ''));
-                if (rooms) saveLead({ rooms });
-              }}
-            />
-            <Fact
-              label="Район"
-              value={lead?.district || null}
-              placeholder="Асанбай"
-              onSave={(district) => saveLead({ district })}
-            />
-            <Fact
-              label="Заметка"
-              value={lead?.comment || null}
-              placeholder="о чём договорились"
-              onSave={(comment) => saveLead({ comment })}
-            />
-          </StyledFacts>
-
-          {history.length > 0 && (
-            <StyledHistory>
-              <StyledTodoLabel>Что уже было</StyledTodoLabel>
-              {history.map((item) => (
-                <StyledHistoryRow key={item.id}>
-                  <StyledHistoryWhen>{item.when}</StyledHistoryWhen>{' '}
-                  {item.label}
-                  {item.note ? ` — «${item.note}»` : ''}
-                </StyledHistoryRow>
-              ))}
-            </StyledHistory>
-          )}
-
-          <StyledTodo>
-            <StyledTodoLabel>
-              {task.status === 'IN_PROGRESS' ? 'В работе' : 'Что сделать'}
-            </StyledTodoLabel>
-            {task.title || 'Задача'}
-            {(() => {
-              const deadline = deadlineText(task.dueAt);
-              return deadline ? (
-                <StyledDeadline late={deadline.late}>
-                  {deadline.text}
-                </StyledDeadline>
-              ) : null;
-            })()}
-            {Boolean(task.snoozeCount) && (
-              <StyledHint>Откладывали {task.snoozeCount} раз</StyledHint>
+            {lead?.chatLink?.primaryLinkUrl && (
+              <StyledChatLink
+                href={lead.chatLink.primaryLinkUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Открыть переписку
+              </StyledChatLink>
             )}
-          </StyledTodo>
+
+            <div>
+              <StyledTodoLabel>Последнее сообщение клиента</StyledTodoLabel>
+              {lead?.lastMessage ? (
+                <StyledSaid>«{lead.lastMessage}»</StyledSaid>
+              ) : (
+                <StyledSaidEmpty>Клиент ничего не написал</StyledSaidEmpty>
+              )}
+            </div>
+
+            <StyledFacts>
+              <Fact
+                label="Телефон"
+                value={phone}
+                placeholder="0990 88 63 88"
+                onSave={(raw) => {
+                  const num = kgPhone(raw);
+                  if (!num) return;
+                  saveLead({
+                    phone: {
+                      primaryPhoneNumber: num,
+                      primaryPhoneCallingCode: '+996',
+                      primaryPhoneCountryCode: 'KG',
+                    },
+                  });
+                }}
+              />
+              {canShow(lead?.budgetMax?.amountMicros) && (
+                <Fact
+                  label="Бюджет до"
+                  value={money(lead?.budgetMax)}
+                  placeholder="сом"
+                  onSave={(raw) => {
+                    const amount = Number(raw.replace(/[^0-9]/g, ''));
+                    if (!amount) return;
+                    saveLead({
+                      budgetMax: {
+                        amountMicros: amount * 1_000_000,
+                        currencyCode: lead?.budgetMax?.currencyCode ?? 'KGS',
+                      },
+                    });
+                  }}
+                />
+              )}
+              {canShow(lead?.rooms) && (
+                <Fact
+                  label="Комнат"
+                  value={lead?.rooms ? String(lead.rooms) : null}
+                  placeholder="2"
+                  onSave={(raw) => {
+                    const rooms = Number(raw.replace(/[^0-9]/g, ''));
+                    if (rooms) saveLead({ rooms });
+                  }}
+                />
+              )}
+              {canShow(lead?.district) && (
+                <Fact
+                  label="Район"
+                  value={lead?.district || null}
+                  placeholder="Асанбай"
+                  onSave={(district) => saveLead({ district })}
+                />
+              )}
+              {canShow(noteValue) && (
+                <Fact
+                  label="Заметка"
+                  value={noteValue}
+                  placeholder="о чём договорились"
+                  onSave={(comment) => saveLead({ comment })}
+                />
+              )}
+            </StyledFacts>
+            {hiddenFacts.length > 0 && (
+              <StyledMoreFacts
+                type="button"
+                onClick={() => setShowAllFacts(true)}
+              >
+                Дополнить: {hiddenFacts.join(', ')}
+              </StyledMoreFacts>
+            )}
+
+            {history.length > 0 && (
+              <StyledHistory>
+                <StyledTodoLabel>Что уже было</StyledTodoLabel>
+                {history.map((item) => (
+                  <StyledHistoryRow key={item.id}>
+                    <StyledHistoryWhen>{item.when}</StyledHistoryWhen>{' '}
+                    {item.label}
+                    {item.note ? ` — «${item.note}»` : ''}
+                  </StyledHistoryRow>
+                ))}
+              </StyledHistory>
+            )}
+
+            <StyledTodo>
+              <StyledTodoLabel>
+                {task.status === 'IN_PROGRESS' ? 'В работе' : 'Что сделать'}
+              </StyledTodoLabel>
+              {task.title || 'Задача'}
+              {(() => {
+                const deadline = deadlineText(task.dueAt);
+                return deadline ? (
+                  <StyledDeadline late={deadline.late}>
+                    {deadline.text}
+                  </StyledDeadline>
+                ) : null;
+              })()}
+              {Boolean(task.snoozeCount) && (
+                <StyledHint>Откладывали {task.snoozeCount} раз</StyledHint>
+              )}
+            </StyledTodo>
+          </StyledScroll>
 
           {!lead ? (
             <StyledWants>
