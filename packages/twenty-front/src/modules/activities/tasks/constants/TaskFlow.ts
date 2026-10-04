@@ -36,6 +36,8 @@ export type Outcome = {
   placeholder?: string;
   /** Готовые варианты для `pick`. */
   choices?: readonly string[];
+  /** Свои сроки для шага «когда». Первый — привычный по умолчанию. */
+  whenOptions?: readonly { label: string; days: number }[];
   /** Подпись, которая запишется сама, когда печатать нечего. */
   autoNote?: string;
   /** Требовать бюджет или район перед тем, как считать клиента своим. */
@@ -79,9 +81,14 @@ export const CONTACT_FLOW: Outcome[] = [
     value: 'THINKING',
     label: 'Думает',
     color: 'yellow',
-    ask: 'note',
-    prompt: 'Что сказал клиент?',
+    ask: 'both',
+    prompt: 'Когда вернуться к нему?',
     placeholder: 'Что ищет, что смущает, когда решит',
+    whenOptions: [
+      { label: 'Через 2 дня', days: 2 },
+      { label: 'Завтра', days: 1 },
+      { label: 'Через неделю', days: 7 },
+    ],
     needsInfo: true,
   },
   {
@@ -141,7 +148,12 @@ export const MANUAL_FLOW: Outcome[] = [
     color: 'gray',
     ask: 'pick',
     prompt: 'Почему отменяем?',
-    choices: ['Больше не нужно', 'Сделал кто-то другой', 'Завёл по ошибке', OTHER_CHOICE],
+    choices: [
+      'Больше не нужно',
+      'Сделал кто-то другой',
+      'Завёл по ошибке',
+      OTHER_CHOICE,
+    ],
   },
 ];
 
@@ -178,9 +190,14 @@ export const FLOW: Record<string, Outcome[]> = {
       value: 'BOOKED',
       label: 'Внёс бронь',
       color: 'purple',
-      ask: 'note',
-      prompt: 'Что забронировал?',
+      ask: 'both',
+      prompt: 'Когда подписываем договор?',
       placeholder: 'Объект, квартира, сумма брони',
+      whenOptions: [
+        { label: 'Через 3 дня', days: 3 },
+        { label: 'Завтра', days: 1 },
+        { label: 'Через неделю', days: 7 },
+      ],
     },
     REFUSED('Почему отказался?'),
   ],
@@ -189,9 +206,14 @@ export const FLOW: Record<string, Outcome[]> = {
       value: 'CONTRACT_SIGNED',
       label: 'Договор подписан',
       color: 'green',
-      ask: 'note',
-      prompt: 'Что подписали?',
+      ask: 'both',
+      prompt: 'Когда ждём оплату?',
       placeholder: 'Номер договора, сумма',
+      whenOptions: [
+        { label: 'Через неделю', days: 7 },
+        { label: 'Через 3 дня', days: 3 },
+        { label: 'Через 2 недели', days: 14 },
+      ],
     },
     {
       value: 'DELAYED',
@@ -234,4 +256,6 @@ export const outcomeIn = (kind: string | null | undefined, value: string) =>
 export const outcomeLabel = (value?: string | null) =>
   Object.values(FLOW)
     .flat()
-    .find((item) => item.value === value)?.label ?? value ?? null;
+    .find((item) => item.value === value)?.label ??
+  value ??
+  null;

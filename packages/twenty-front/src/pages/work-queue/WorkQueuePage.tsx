@@ -85,8 +85,14 @@ type Lead = {
   lastMessage?: string | null;
   lostReason?: string | null;
   createdAt?: string | null;
-  budgetMax?: { amountMicros?: number | null; currencyCode?: string | null } | null;
-  phone?: { primaryPhoneNumber?: string | null; primaryPhoneCallingCode?: string | null } | null;
+  budgetMax?: {
+    amountMicros?: number | null;
+    currencyCode?: string | null;
+  } | null;
+  phone?: {
+    primaryPhoneNumber?: string | null;
+    primaryPhoneCallingCode?: string | null;
+  } | null;
   chatLink?: { primaryLinkUrl?: string | null } | null;
 };
 
@@ -111,12 +117,17 @@ const atDay = (days: number) => {
   const when = new Date();
   when.setDate(when.getDate() + days);
   when.setHours(14, 0, 0, 0);
-  if (when.getTime() < Date.now()) when.setHours(new Date().getHours() + 2, 0, 0, 0);
+  if (when.getTime() < Date.now())
+    when.setHours(new Date().getHours() + 2, 0, 0, 0);
   return when.toISOString();
 };
 
 /** Через сколько минут от сейчас, с поправкой на «завтра утром». */
-const inMinutes = (option: { minutes: number; atHour?: number; tomorrow?: boolean }) => {
+const inMinutes = (option: {
+  minutes: number;
+  atHour?: number;
+  tomorrow?: boolean;
+}) => {
   const when = new Date();
   if (option.tomorrow === true) when.setDate(when.getDate() + 1);
   if (option.atHour !== undefined) when.setHours(option.atHour, 0, 0, 0);
@@ -211,9 +222,9 @@ const StyledCard = styled.div<{ isLeaving: boolean }>`
   border-radius: 12px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   opacity: ${({ isLeaving }) => (isLeaving ? 0 : 1)};
-  padding: 20px;
+  padding: 16px;
   position: relative;
   transform: ${({ isLeaving }) =>
     isLeaving ? 'translateX(-110%) rotate(-5deg)' : 'none'};
@@ -269,7 +280,7 @@ const StyledBarFill = styled.div`
 `;
 
 const StyledName = styled.div`
-  font-size: 24px;
+  font-size: 21px;
   font-weight: ${themeCssVariables.font.weight.semiBold};
   line-height: 1.2;
 `;
@@ -295,10 +306,14 @@ const StyledAge = styled.div`
 
 const StyledSub = styled.div<{ isLate: boolean }>`
   color: ${({ isLate }) =>
-    isLate ? themeCssVariables.color.red : themeCssVariables.font.color.tertiary};
+    isLate
+      ? themeCssVariables.color.red
+      : themeCssVariables.font.color.tertiary};
   font-size: ${themeCssVariables.font.size.sm};
   font-weight: ${({ isLate }) =>
-    isLate ? themeCssVariables.font.weight.semiBold : themeCssVariables.font.weight.regular};
+    isLate
+      ? themeCssVariables.font.weight.semiBold
+      : themeCssVariables.font.weight.regular};
   margin-top: 4px;
 `;
 
@@ -311,7 +326,7 @@ const StyledBigLink = styled.a`
   font-size: 17px;
   font-weight: ${themeCssVariables.font.weight.semiBold};
   justify-content: center;
-  min-height: 48px;
+  min-height: 44px;
   text-decoration: none;
 `;
 
@@ -323,7 +338,7 @@ const StyledChatLink = styled.a`
   display: flex;
   font-size: ${themeCssVariables.font.size.md};
   justify-content: center;
-  min-height: 40px;
+  min-height: 38px;
   text-decoration: none;
 `;
 
@@ -368,7 +383,7 @@ const StyledFact = styled.div`
   display: flex;
   gap: 12px;
   justify-content: space-between;
-  min-height: 40px;
+  min-height: 32px;
 
   &:last-child {
     border-bottom: 0;
@@ -385,7 +400,9 @@ const StyledFactValue = styled.button<{ isEmpty: boolean; canEdit: boolean }>`
   background: transparent;
   border: 0;
   color: ${({ isEmpty }) =>
-    isEmpty ? themeCssVariables.font.color.light : themeCssVariables.font.color.primary};
+    isEmpty
+      ? themeCssVariables.font.color.light
+      : themeCssVariables.font.color.primary};
   cursor: ${({ canEdit }) => (canEdit ? 'pointer' : 'default')};
   font-family: inherit;
   font-size: ${themeCssVariables.font.size.md};
@@ -417,7 +434,7 @@ const StyledHistory = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-top: 12px;
+  padding-top: 10px;
 `;
 
 const StyledHistoryRow = styled.div`
@@ -443,7 +460,8 @@ const StyledDeadline = styled.div<{ late: boolean }>`
   background: ${({ late }) =>
     late ? 'var(--t-tag-background-red)' : 'var(--t-tag-background-gray)'};
   border-radius: 6px;
-  color: ${({ late }) => (late ? 'var(--t-tag-text-red)' : 'var(--t-tag-text-gray)')};
+  color: ${({ late }) =>
+    late ? 'var(--t-tag-text-red)' : 'var(--t-tag-text-gray)'};
   display: inline-block;
   font-size: ${themeCssVariables.font.size.sm};
   font-weight: ${themeCssVariables.font.weight.medium};
@@ -473,7 +491,7 @@ const StyledOutcome = styled.button`
   font-family: inherit;
   font-size: ${themeCssVariables.font.size.md};
   font-weight: ${themeCssVariables.font.weight.medium};
-  min-height: 52px;
+  min-height: 44px;
   padding: 8px;
 
   &:disabled {
@@ -493,7 +511,7 @@ const StyledTakeButton = styled.button`
   font-size: ${themeCssVariables.font.size.md};
   font-weight: ${themeCssVariables.font.weight.medium};
   grid-column: span 2;
-  min-height: 48px;
+  min-height: 42px;
 
   &:disabled {
     opacity: 0.5;
@@ -509,7 +527,7 @@ const StyledSnooze = styled.button`
   font-family: inherit;
   font-size: ${themeCssVariables.font.size.md};
   grid-column: span 2;
-  min-height: 44px;
+  min-height: 40px;
 `;
 
 const StyledReasonBox = styled.div`
@@ -597,7 +615,10 @@ const deadlineText = (dueAt?: string | null) => {
       : left < 1440
         ? `${Math.round(left / 60)} ч`
         : `${Math.round(left / 1440)} дн`;
-  return { late, text: late ? `просрочено на ${amount}` : `осталось ${amount}` };
+  return {
+    late,
+    text: late ? `просрочено на ${amount}` : `осталось ${amount}`,
+  };
 };
 
 /** Свежее ли сообщение: меньше часа — значит клиент пишет прямо сейчас. */
@@ -608,7 +629,10 @@ const minutesSince = (value?: string | null) =>
 
 const shortDate = (value?: string | null) =>
   value
-    ? new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+    ? new Date(value).toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'short',
+      })
     : null;
 
 const waitingFor = (since?: string | null) => {
@@ -631,7 +655,8 @@ const money = (value: Lead['budgetMax']) => {
     amount >= 1000
       ? `${Math.round(amount / 1000).toLocaleString('ru-RU')} тыс`
       : `${Math.round(amount)}`;
-  const currency = value?.currencyCode === 'KGS' ? 'сом' : (value?.currencyCode ?? '');
+  const currency =
+    value?.currencyCode === 'KGS' ? 'сом' : (value?.currencyCode ?? '');
   return `${short} ${currency}`.trim();
 };
 
@@ -688,7 +713,9 @@ const Fact = ({
           autoFocus
           value={draft}
           placeholder={placeholder}
-          inputMode={placeholder === 'сом' || label === 'Комнат' ? 'numeric' : 'text'}
+          inputMode={
+            placeholder === 'сом' || label === 'Комнат' ? 'numeric' : 'text'
+          }
           onChange={(event) => setDraft(event.target.value)}
           onBlur={commit}
           onKeyDown={(event) => {
@@ -754,10 +781,11 @@ export const WorkQueuePage = () => {
     objectNameSingular: 'task',
     limit: 500,
   });
-  const { records: targets, refetch: refetchTargets } = useFindManyRecords<TaskTarget>({
-    objectNameSingular: 'taskTarget',
-    limit: 500,
-  });
+  const { records: targets, refetch: refetchTargets } =
+    useFindManyRecords<TaskTarget>({
+      objectNameSingular: 'taskTarget',
+      limit: 500,
+    });
   const { records: comments, refetch: refetchComments } =
     useFindManyRecords<Comment>({
       objectNameSingular: 'taskComment',
@@ -827,8 +855,12 @@ export const WorkQueuePage = () => {
       .sort((a, b) => {
         const byWeight = weigh(b) - weigh(a);
         if (byWeight !== 0) return byWeight;
-        const left = a.dueAt ? new Date(a.dueAt).getTime() : Number.MAX_SAFE_INTEGER;
-        const right = b.dueAt ? new Date(b.dueAt).getTime() : Number.MAX_SAFE_INTEGER;
+        const left = a.dueAt
+          ? new Date(a.dueAt).getTime()
+          : Number.MAX_SAFE_INTEGER;
+        const right = b.dueAt
+          ? new Date(b.dueAt).getTime()
+          : Number.MAX_SAFE_INTEGER;
         return left - right;
       });
   }, [tasks, me?.id, weigh]);
@@ -849,8 +881,7 @@ export const WorkQueuePage = () => {
     .join(' ')
     .trim();
 
-  const task =
-    queue.find((item) => item.id === pinnedId) ?? queue[0];
+  const task = queue.find((item) => item.id === pinnedId) ?? queue[0];
 
   useEffect(() => {
     if (task?.id && task.id !== pinnedId) setPinnedId(task.id);
@@ -860,18 +891,24 @@ export const WorkQueuePage = () => {
   // кнопку убираем: иначе лид возвращается месяцами и живёт вечно.
   const noAnswerTries = useMemo(() => {
     if (!task) return 0;
-    const leadId = targets.find((t) => t.taskId === task.id)?.targetOpportunityId;
+    const leadId = targets.find(
+      (t) => t.taskId === task.id,
+    )?.targetOpportunityId;
     if (!leadId) return 0;
     const sameLead = new Set(
-      targets.filter((t) => t.targetOpportunityId === leadId).map((t) => t.taskId),
+      targets
+        .filter((t) => t.targetOpportunityId === leadId)
+        .map((t) => t.taskId),
     );
-    return tasks.filter((t) => sameLead.has(t.id) && t.outcome === 'NO_ANSWER').length;
+    return tasks.filter((t) => sameLead.has(t.id) && t.outcome === 'NO_ANSWER')
+      .length;
   }, [task, targets, tasks]);
 
   const lead = useMemo(() => {
     if (!task) return null;
-    const leadId = targets.find((target) => target.taskId === task.id)
-      ?.targetOpportunityId;
+    const leadId = targets.find(
+      (target) => target.taskId === task.id,
+    )?.targetOpportunityId;
     return leads.find((item) => item.id === leadId) ?? null;
   }, [task, targets, leads]);
 
@@ -899,12 +936,11 @@ export const WorkQueuePage = () => {
       .filter(
         (item) =>
           sameLead.has(item.id) &&
-          (isDefined(item.outcome) || item.status === 'DONE' ||
+          (isDefined(item.outcome) ||
+            item.status === 'DONE' ||
             item.status === 'CANCELLED'),
       )
-      .sort((a, b) =>
-        (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''),
-      )
+      .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
       .slice(0, 4)
       .map((item) => ({
         id: item.id,
@@ -1016,10 +1052,20 @@ export const WorkQueuePage = () => {
       leadSource: draft.leadSource,
       ownerId: me?.id,
       ...(phone
-        ? { phone: { primaryPhoneNumber: phone, primaryPhoneCallingCode: '+996' } }
+        ? {
+            phone: {
+              primaryPhoneNumber: phone,
+              primaryPhoneCallingCode: '+996',
+            },
+          }
         : {}),
       ...(amount
-        ? { budgetMax: { amountMicros: amount * 1_000_000, currencyCode: 'KGS' } }
+        ? {
+            budgetMax: {
+              amountMicros: amount * 1_000_000,
+              currencyCode: 'KGS',
+            },
+          }
         : {}),
       ...(draft.comment.trim() ? { comment: draft.comment.trim() } : {}),
     });
@@ -1095,7 +1141,9 @@ export const WorkQueuePage = () => {
           value={draft.phone}
           inputMode="tel"
           placeholder="555 123456"
-          onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
+          onChange={(event) =>
+            setDraft({ ...draft, phone: event.target.value })
+          }
         />
       </StyledFormRow>
       <StyledFormRow>
@@ -1117,7 +1165,9 @@ export const WorkQueuePage = () => {
         <StyledFormLabel>Как связываться</StyledFormLabel>
         <StyledSelect
           value={draft.channel}
-          onChange={(event) => setDraft({ ...draft, channel: event.target.value })}
+          onChange={(event) =>
+            setDraft({ ...draft, channel: event.target.value })
+          }
         >
           {NEW_CHANNELS.map((item) => (
             <option key={item.value} value={item.value}>
@@ -1132,7 +1182,9 @@ export const WorkQueuePage = () => {
           value={draft.budget}
           inputMode="numeric"
           placeholder="необязательно"
-          onChange={(event) => setDraft({ ...draft, budget: event.target.value })}
+          onChange={(event) =>
+            setDraft({ ...draft, budget: event.target.value })
+          }
         />
       </StyledFormRow>
       <StyledFormRow>
@@ -1140,7 +1192,9 @@ export const WorkQueuePage = () => {
         <StyledInput
           value={draft.comment}
           placeholder="необязательно"
-          onChange={(event) => setDraft({ ...draft, comment: event.target.value })}
+          onChange={(event) =>
+            setDraft({ ...draft, comment: event.target.value })
+          }
         />
       </StyledFormRow>
       <StyledButtons>
@@ -1192,11 +1246,14 @@ export const WorkQueuePage = () => {
   const phone = lead?.phone?.primaryPhoneNumber
     ? `${lead.phone.primaryPhoneCallingCode ?? ''}${lead.phone.primaryPhoneNumber}`
     : null;
-  const isLate = Boolean(task.dueAt && new Date(task.dueAt).getTime() < Date.now());
+  const isLate = Boolean(
+    task.dueAt && new Date(task.dueAt).getTime() < Date.now(),
+  );
   // Старая заявка с только что пришедшим сообщением выглядела заброшенной:
   // «ждёт 33 дн» считалось от её создания, а клиент написал минуту назад.
   const waitedMinutes = minutesSince(lead?.waitingSince);
-  const justWrote = waitedMinutes !== null && waitedMinutes < JUST_WROTE_MINUTES;
+  const justWrote =
+    waitedMinutes !== null && waitedMinutes < JUST_WROTE_MINUTES;
   const leadAgeDays = minutesSince(lead?.createdAt);
   const isOldLead = leadAgeDays !== null && leadAgeDays > 1440;
 
@@ -1205,295 +1262,258 @@ export const WorkQueuePage = () => {
       <StyledStack>
         {queue.length > 1 && <StyledGhost />}
         <StyledCard key={task.id} isLeaving={leaving}>
-        {myName && <StyledWhose>Моя работа · {myName}</StyledWhose>}
+          {myName && <StyledWhose>Моя работа · {myName}</StyledWhose>}
 
-        <StyledProgress>
-          Осталось {queue.length} из {total}
-          <StyledBar>
-            <StyledBarFill
-              style={
-                {
-                  '--done-share': `${total ? (doneToday / total) * 100 : 0}%`,
-                } as React.CSSProperties
-              }
-            />
-          </StyledBar>
-        </StyledProgress>
-
-        <div>
-          <StyledName>{lead?.name || 'Заявка недоступна'}</StyledName>
-          <StyledSub isLate={isLate}>
-            {justWrote && <StyledFresh>новое сообщение</StyledFresh>}
-            {[
-              CHANNELS[lead?.channel ?? ''] ?? lead?.channel,
-              lead?.contactValue,
-              waitingFor(lead?.waitingSince ?? lead?.createdAt),
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </StyledSub>
-          {isOldLead && (
-            <StyledAge>заявка от {shortDate(lead?.createdAt)}</StyledAge>
-          )}
-        </div>
-
-        {phone && <StyledBigLink href={`tel:${phone}`}>Позвонить {phone}</StyledBigLink>}
-        {lead?.chatLink?.primaryLinkUrl && (
-          <StyledChatLink
-            href={lead.chatLink.primaryLinkUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Открыть переписку
-          </StyledChatLink>
-        )}
-
-        <div>
-          <StyledTodoLabel>Последнее сообщение клиента</StyledTodoLabel>
-          {lead?.lastMessage ? (
-            <StyledSaid>«{lead.lastMessage}»</StyledSaid>
-          ) : (
-            <StyledSaidEmpty>Клиент ничего не написал</StyledSaidEmpty>
-          )}
-        </div>
-
-        <StyledFacts>
-          <Fact
-            label="Телефон"
-            value={phone}
-            placeholder="0990 88 63 88"
-            onSave={(raw) => {
-              const num = kgPhone(raw);
-              if (!num) return;
-              saveLead({
-                phone: {
-                  primaryPhoneNumber: num,
-                  primaryPhoneCallingCode: '+996',
-                  primaryPhoneCountryCode: 'KG',
-                },
-              });
-            }}
-          />
-          <Fact
-            label="Бюджет до"
-            value={money(lead?.budgetMax)}
-            placeholder="сом"
-            onSave={(raw) => {
-              const amount = Number(raw.replace(/[^0-9]/g, ''));
-              if (!amount) return;
-              saveLead({
-                budgetMax: {
-                  amountMicros: amount * 1_000_000,
-                  currencyCode: lead?.budgetMax?.currencyCode ?? 'KGS',
-                },
-              });
-            }}
-          />
-          <Fact
-            label="Комнат"
-            value={lead?.rooms ? String(lead.rooms) : null}
-            placeholder="2"
-            onSave={(raw) => {
-              const rooms = Number(raw.replace(/[^0-9]/g, ''));
-              if (rooms) saveLead({ rooms });
-            }}
-          />
-          <Fact
-            label="Район"
-            value={lead?.district || null}
-            placeholder="Асанбай"
-            onSave={(district) => saveLead({ district })}
-          />
-          <Fact
-            label="Заметка"
-            value={lead?.comment || null}
-            placeholder="о чём договорились"
-            onSave={(comment) => saveLead({ comment })}
-          />
-        </StyledFacts>
-
-        {history.length > 0 && (
-          <StyledHistory>
-            <StyledTodoLabel>Что уже было</StyledTodoLabel>
-            {history.map((item) => (
-              <StyledHistoryRow key={item.id}>
-                <StyledHistoryWhen>{item.when}</StyledHistoryWhen>{' '}
-                {item.label}
-                {item.note ? ` — «${item.note}»` : ''}
-              </StyledHistoryRow>
-            ))}
-          </StyledHistory>
-        )}
-
-        <StyledTodo>
-          <StyledTodoLabel>
-            {task.status === 'IN_PROGRESS' ? 'В работе' : 'Что сделать'}
-          </StyledTodoLabel>
-          {task.title || 'Задача'}
-          {(() => {
-            const deadline = deadlineText(task.dueAt);
-            return deadline ? (
-              <StyledDeadline late={deadline.late}>{deadline.text}</StyledDeadline>
-            ) : null;
-          })()}
-          {Boolean(task.snoozeCount) && (
-            <StyledHint>Откладывали {task.snoozeCount} раз</StyledHint>
-          )}
-        </StyledTodo>
-
-        {!lead ? (
-          <StyledWants>
-            Эта задача стоит на заявке другой команды — её не видно по правам.
-            Скажите старшему, он передаст задачу владельцу заявки.
-          </StyledWants>
-        ) : pending && step === 'when' ? (
-          <StyledReasonBox>
-            <StyledHint>{outcomeIn(task.kind, pending)?.prompt}</StyledHint>
-            <StyledButtons>
-              {outcomeIn(task.kind, pending)?.ask === 'when'
-                ? RETRY_WHEN.map((option) => (
-                    <StyledSnooze
-                      key={option.label}
-                      type="button"
-                      style={{ gridColumn: 'span 1' }}
-                      disabled={busy}
-                      onClick={() => {
-                        // Печатать нечего: подпись пишется сама, и задача
-                        // закрывается сразу — лишний экран тут только мешает.
-                        const auto = outcomeIn(task.kind, pending)?.autoNote;
-                        void confirmWith(
-                          inMinutes(option),
-                          `${auto ?? 'Не ответил'} — ${option.label.toLowerCase()}`,
-                        );
-                      }}
-                    >
-                      {option.label}
-                    </StyledSnooze>
-                  ))
-                : DAY_WHEN.map((day) => (
-                    <StyledSnooze
-                      key={day.label}
-                      type="button"
-                      style={{ gridColumn: 'span 1' }}
-                      onClick={() => {
-                        setNextAt(atDay(day.days));
-                        setStep('note');
-                      }}
-                    >
-                      {day.label}
-                    </StyledSnooze>
-                  ))}
-              <StyledSnooze
-                type="button"
-                style={{ gridColumn: 'span 1' }}
-                onClick={() => {
-                  const input = dayInputRef.current;
-                  if (!isDefined(input)) return;
-                  if (typeof input.showPicker === 'function') input.showPicker();
-                  else input.focus();
-                }}
-              >
-                Выбрать дату
-                <StyledHiddenDay
-                  ref={dayInputRef}
-                  type="datetime-local"
-                  onChange={(event) => {
-                    if (!event.target.value) return;
-                    const when = new Date(event.target.value).toISOString();
-                    if (outcomeIn(task.kind, pending)?.ask === 'when') {
-                      const auto = outcomeIn(task.kind, pending)?.autoNote;
-                      void confirmWith(when, auto ?? 'Не ответил');
-                      return;
-                    }
-                    setNextAt(when);
-                    setStep('note');
-                  }}
-                />
-              </StyledSnooze>
-              <StyledSnooze type="button" onClick={() => setPending(null)}>
-                Назад
-              </StyledSnooze>
-            </StyledButtons>
-          </StyledReasonBox>
-        ) : pending && step === 'pick' ? (
-          <StyledReasonBox>
-            <StyledHint>{outcomeIn(task.kind, pending)?.prompt}</StyledHint>
-            <StyledButtons>
-              {(outcomeIn(task.kind, pending)?.choices ?? []).map((choice) => (
-                <StyledSnooze
-                  key={choice}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    if (choice === OTHER_CHOICE) {
-                      setStep('note');
-                      return;
-                    }
-                    void confirmWith(null, choice);
-                  }}
-                >
-                  {choice}
-                </StyledSnooze>
-              ))}
-              <StyledSnooze type="button" onClick={() => setPending(null)}>
-                Назад
-              </StyledSnooze>
-            </StyledButtons>
-          </StyledReasonBox>
-        ) : pending && step === 'need' ? (
-          <StyledReasonBox>
-            <StyledHint>
-              Чтобы считать клиента квалифицированным, нужно хоть что-то про
-              него знать. Впишите бюджет или район.
-            </StyledHint>
-            <StyledFacts>
-              <Fact
-                label="Бюджет до"
-                value={money(lead?.budgetMax)}
-                placeholder="сом"
-                onSave={(raw) => {
-                  const amount = Number(raw.replace(/[^0-9]/g, ''));
-                  if (!amount) return;
-                  saveLead({
-                    budgetMax: {
-                      amountMicros: amount * 1_000_000,
-                      currencyCode: lead?.budgetMax?.currencyCode ?? 'KGS',
-                    },
-                  });
-                }}
-              />
-              <Fact
-                label="Район"
-                value={lead?.district || null}
-                placeholder="Асанбай"
-                onSave={(district) => saveLead({ district })}
-              />
-            </StyledFacts>
-            <StyledButtons>
-              <StyledSnooze type="button" onClick={() => setPending(null)}>
-                Назад
-              </StyledSnooze>
-              <StyledOutcome
-                type="button"
-                disabled={!lead?.budgetMax?.amountMicros && !lead?.district}
+          <StyledProgress>
+            Осталось {queue.length} из {total}
+            <StyledBar>
+              <StyledBarFill
                 style={
                   {
-                    '--pill-bg': 'var(--t-tag-background-yellow)',
-                    '--pill-fg': 'var(--t-tag-text-yellow)',
+                    '--done-share': `${total ? (doneToday / total) * 100 : 0}%`,
                   } as React.CSSProperties
                 }
-                onClick={() => {
-                  const ask = outcomeIn(task.kind, pending)?.ask;
-                  setStep(ask === 'when' || ask === 'both' ? 'when' : 'note');
-                }}
-              >
-                Дальше
-              </StyledOutcome>
-            </StyledButtons>
-          </StyledReasonBox>
-        ) : pending ? (
-          <StyledReasonBox>
-            {pending !== 'REFUSED' && pending !== 'NO_ANSWER' && (
+              />
+            </StyledBar>
+          </StyledProgress>
+
+          <div>
+            <StyledName>{lead?.name || 'Заявка недоступна'}</StyledName>
+            <StyledSub isLate={isLate}>
+              {justWrote && <StyledFresh>новое сообщение</StyledFresh>}
+              {[
+                CHANNELS[lead?.channel ?? ''] ?? lead?.channel,
+                lead?.contactValue,
+                waitingFor(lead?.waitingSince ?? lead?.createdAt),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </StyledSub>
+            {isOldLead && (
+              <StyledAge>заявка от {shortDate(lead?.createdAt)}</StyledAge>
+            )}
+          </div>
+
+          {phone && (
+            <StyledBigLink href={`tel:${phone}`}>
+              Позвонить {phone}
+            </StyledBigLink>
+          )}
+          {lead?.chatLink?.primaryLinkUrl && (
+            <StyledChatLink
+              href={lead.chatLink.primaryLinkUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Открыть переписку
+            </StyledChatLink>
+          )}
+
+          <div>
+            <StyledTodoLabel>Последнее сообщение клиента</StyledTodoLabel>
+            {lead?.lastMessage ? (
+              <StyledSaid>«{lead.lastMessage}»</StyledSaid>
+            ) : (
+              <StyledSaidEmpty>Клиент ничего не написал</StyledSaidEmpty>
+            )}
+          </div>
+
+          <StyledFacts>
+            <Fact
+              label="Телефон"
+              value={phone}
+              placeholder="0990 88 63 88"
+              onSave={(raw) => {
+                const num = kgPhone(raw);
+                if (!num) return;
+                saveLead({
+                  phone: {
+                    primaryPhoneNumber: num,
+                    primaryPhoneCallingCode: '+996',
+                    primaryPhoneCountryCode: 'KG',
+                  },
+                });
+              }}
+            />
+            <Fact
+              label="Бюджет до"
+              value={money(lead?.budgetMax)}
+              placeholder="сом"
+              onSave={(raw) => {
+                const amount = Number(raw.replace(/[^0-9]/g, ''));
+                if (!amount) return;
+                saveLead({
+                  budgetMax: {
+                    amountMicros: amount * 1_000_000,
+                    currencyCode: lead?.budgetMax?.currencyCode ?? 'KGS',
+                  },
+                });
+              }}
+            />
+            <Fact
+              label="Комнат"
+              value={lead?.rooms ? String(lead.rooms) : null}
+              placeholder="2"
+              onSave={(raw) => {
+                const rooms = Number(raw.replace(/[^0-9]/g, ''));
+                if (rooms) saveLead({ rooms });
+              }}
+            />
+            <Fact
+              label="Район"
+              value={lead?.district || null}
+              placeholder="Асанбай"
+              onSave={(district) => saveLead({ district })}
+            />
+            <Fact
+              label="Заметка"
+              value={lead?.comment || null}
+              placeholder="о чём договорились"
+              onSave={(comment) => saveLead({ comment })}
+            />
+          </StyledFacts>
+
+          {history.length > 0 && (
+            <StyledHistory>
+              <StyledTodoLabel>Что уже было</StyledTodoLabel>
+              {history.map((item) => (
+                <StyledHistoryRow key={item.id}>
+                  <StyledHistoryWhen>{item.when}</StyledHistoryWhen>{' '}
+                  {item.label}
+                  {item.note ? ` — «${item.note}»` : ''}
+                </StyledHistoryRow>
+              ))}
+            </StyledHistory>
+          )}
+
+          <StyledTodo>
+            <StyledTodoLabel>
+              {task.status === 'IN_PROGRESS' ? 'В работе' : 'Что сделать'}
+            </StyledTodoLabel>
+            {task.title || 'Задача'}
+            {(() => {
+              const deadline = deadlineText(task.dueAt);
+              return deadline ? (
+                <StyledDeadline late={deadline.late}>
+                  {deadline.text}
+                </StyledDeadline>
+              ) : null;
+            })()}
+            {Boolean(task.snoozeCount) && (
+              <StyledHint>Откладывали {task.snoozeCount} раз</StyledHint>
+            )}
+          </StyledTodo>
+
+          {!lead ? (
+            <StyledWants>
+              Эта задача стоит на заявке другой команды — её не видно по правам.
+              Скажите старшему, он передаст задачу владельцу заявки.
+            </StyledWants>
+          ) : pending && step === 'when' ? (
+            <StyledReasonBox>
+              <StyledHint>{outcomeIn(task.kind, pending)?.prompt}</StyledHint>
+              <StyledButtons>
+                {outcomeIn(task.kind, pending)?.ask === 'when'
+                  ? RETRY_WHEN.map((option) => (
+                      <StyledSnooze
+                        key={option.label}
+                        type="button"
+                        style={{ gridColumn: 'span 1' }}
+                        disabled={busy}
+                        onClick={() => {
+                          // Печатать нечего: подпись пишется сама, и задача
+                          // закрывается сразу — лишний экран тут только мешает.
+                          const auto = outcomeIn(task.kind, pending)?.autoNote;
+                          void confirmWith(
+                            inMinutes(option),
+                            `${auto ?? 'Не ответил'} — ${option.label.toLowerCase()}`,
+                          );
+                        }}
+                      >
+                        {option.label}
+                      </StyledSnooze>
+                    ))
+                  : (
+                      outcomeIn(task.kind, pending)?.whenOptions ?? DAY_WHEN
+                    ).map((day) => (
+                      <StyledSnooze
+                        key={day.label}
+                        type="button"
+                        style={{ gridColumn: 'span 1' }}
+                        onClick={() => {
+                          setNextAt(atDay(day.days));
+                          setStep('note');
+                        }}
+                      >
+                        {day.label}
+                      </StyledSnooze>
+                    ))}
+                <StyledSnooze
+                  type="button"
+                  style={{ gridColumn: 'span 1' }}
+                  onClick={() => {
+                    const input = dayInputRef.current;
+                    if (!isDefined(input)) return;
+                    if (typeof input.showPicker === 'function')
+                      input.showPicker();
+                    else input.focus();
+                  }}
+                >
+                  Выбрать дату
+                  <StyledHiddenDay
+                    ref={dayInputRef}
+                    type="datetime-local"
+                    onChange={(event) => {
+                      if (!event.target.value) return;
+                      const when = new Date(event.target.value).toISOString();
+                      if (outcomeIn(task.kind, pending)?.ask === 'when') {
+                        const auto = outcomeIn(task.kind, pending)?.autoNote;
+                        void confirmWith(when, auto ?? 'Не ответил');
+                        return;
+                      }
+                      setNextAt(when);
+                      setStep('note');
+                    }}
+                  />
+                </StyledSnooze>
+                <StyledSnooze type="button" onClick={() => setPending(null)}>
+                  Назад
+                </StyledSnooze>
+              </StyledButtons>
+            </StyledReasonBox>
+          ) : pending && step === 'pick' ? (
+            <StyledReasonBox>
+              <StyledHint>{outcomeIn(task.kind, pending)?.prompt}</StyledHint>
+              <StyledButtons>
+                {(outcomeIn(task.kind, pending)?.choices ?? []).map(
+                  (choice) => (
+                    <StyledSnooze
+                      key={choice}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        if (choice === OTHER_CHOICE) {
+                          setStep('note');
+                          return;
+                        }
+                        void confirmWith(null, choice);
+                      }}
+                    >
+                      {choice}
+                    </StyledSnooze>
+                  ),
+                )}
+                <StyledSnooze type="button" onClick={() => setPending(null)}>
+                  Назад
+                </StyledSnooze>
+              </StyledButtons>
+            </StyledReasonBox>
+          ) : pending && step === 'need' ? (
+            <StyledReasonBox>
+              <StyledHint>
+                Чтобы считать клиента квалифицированным, нужно хоть что-то про
+                него знать. Впишите бюджет или район.
+              </StyledHint>
               <StyledFacts>
                 <Fact
                   label="Бюджет до"
@@ -1511,128 +1531,181 @@ export const WorkQueuePage = () => {
                   }}
                 />
                 <Fact
-                  label="Комнат"
-                  value={lead?.rooms ? String(lead.rooms) : null}
-                  placeholder="2"
-                  onSave={(raw) => {
-                    const rooms = Number(raw.replace(/[^0-9]/g, ''));
-                    if (rooms) saveLead({ rooms });
-                  }}
-                />
-                <Fact
                   label="Район"
                   value={lead?.district || null}
                   placeholder="Асанбай"
                   onSave={(district) => saveLead({ district })}
                 />
               </StyledFacts>
-            )}
-            <StyledHint>
-              {outcomeIn(task.kind, pending)?.prompt}
-            </StyledHint>
-            <StyledInput
-              autoFocus
-              value={note}
-              placeholder={outcomeIn(task.kind, pending)?.placeholder}
-              onChange={(event) => setNote(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') confirm();
-                if (event.key === 'Escape') setPending(null);
-              }}
-            />
+              <StyledButtons>
+                <StyledSnooze type="button" onClick={() => setPending(null)}>
+                  Назад
+                </StyledSnooze>
+                <StyledOutcome
+                  type="button"
+                  disabled={!lead?.budgetMax?.amountMicros && !lead?.district}
+                  style={
+                    {
+                      '--pill-bg': 'var(--t-tag-background-yellow)',
+                      '--pill-fg': 'var(--t-tag-text-yellow)',
+                    } as React.CSSProperties
+                  }
+                  onClick={() => {
+                    const ask = outcomeIn(task.kind, pending)?.ask;
+                    setStep(ask === 'when' || ask === 'both' ? 'when' : 'note');
+                  }}
+                >
+                  Дальше
+                </StyledOutcome>
+              </StyledButtons>
+            </StyledReasonBox>
+          ) : pending ? (
+            <StyledReasonBox>
+              {pending !== 'REFUSED' && pending !== 'NO_ANSWER' && (
+                <StyledFacts>
+                  <Fact
+                    label="Бюджет до"
+                    value={money(lead?.budgetMax)}
+                    placeholder="сом"
+                    onSave={(raw) => {
+                      const amount = Number(raw.replace(/[^0-9]/g, ''));
+                      if (!amount) return;
+                      saveLead({
+                        budgetMax: {
+                          amountMicros: amount * 1_000_000,
+                          currencyCode: lead?.budgetMax?.currencyCode ?? 'KGS',
+                        },
+                      });
+                    }}
+                  />
+                  <Fact
+                    label="Комнат"
+                    value={lead?.rooms ? String(lead.rooms) : null}
+                    placeholder="2"
+                    onSave={(raw) => {
+                      const rooms = Number(raw.replace(/[^0-9]/g, ''));
+                      if (rooms) saveLead({ rooms });
+                    }}
+                  />
+                  <Fact
+                    label="Район"
+                    value={lead?.district || null}
+                    placeholder="Асанбай"
+                    onSave={(district) => saveLead({ district })}
+                  />
+                </StyledFacts>
+              )}
+              <StyledHint>{outcomeIn(task.kind, pending)?.prompt}</StyledHint>
+              <StyledInput
+                autoFocus
+                value={note}
+                placeholder={outcomeIn(task.kind, pending)?.placeholder}
+                onChange={(event) => setNote(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') confirm();
+                  if (event.key === 'Escape') setPending(null);
+                }}
+              />
+              <StyledButtons>
+                <StyledSnooze type="button" onClick={() => setPending(null)}>
+                  Назад
+                </StyledSnooze>
+                <StyledOutcome
+                  type="button"
+                  disabled={!note.trim() || busy}
+                  style={
+                    {
+                      '--pill-bg': `var(--t-tag-background-${
+                        flowFor(task.kind).find((i) => i.value === pending)
+                          ?.color ?? 'gray'
+                      })`,
+                      '--pill-fg': `var(--t-tag-text-${
+                        flowFor(task.kind).find((i) => i.value === pending)
+                          ?.color ?? 'gray'
+                      })`,
+                    } as React.CSSProperties
+                  }
+                  onClick={confirm}
+                >
+                  Готово
+                </StyledOutcome>
+              </StyledButtons>
+            </StyledReasonBox>
+          ) : showSnooze ? (
             <StyledButtons>
-              <StyledSnooze type="button" onClick={() => setPending(null)}>
+              {SNOOZES.map((option) => (
+                <StyledSnooze
+                  key={option.label}
+                  type="button"
+                  style={{ gridColumn: 'span 1' }}
+                  onClick={() => snooze(option)}
+                >
+                  {option.label}
+                </StyledSnooze>
+              ))}
+              <StyledSnooze type="button" onClick={() => setShowSnooze(false)}>
                 Назад
               </StyledSnooze>
-              <StyledOutcome
-                type="button"
-                disabled={!note.trim() || busy}
-                style={
-                  {
-                    '--pill-bg': `var(--t-tag-background-${
-                      flowFor(task.kind).find((i) => i.value === pending)?.color ?? 'gray'
-                    })`,
-                    '--pill-fg': `var(--t-tag-text-${
-                      flowFor(task.kind).find((i) => i.value === pending)?.color ?? 'gray'
-                    })`,
-                  } as React.CSSProperties
-                }
-                onClick={confirm}
-              >
-                Готово
-              </StyledOutcome>
             </StyledButtons>
-          </StyledReasonBox>
-        ) : showSnooze ? (
-          <StyledButtons>
-            {SNOOZES.map((option) => (
-              <StyledSnooze
-                key={option.label}
-                type="button"
-                style={{ gridColumn: 'span 1' }}
-                onClick={() => snooze(option)}
-              >
-                {option.label}
+          ) : (
+            <StyledButtons>
+              {task.status !== 'IN_PROGRESS' && (
+                <StyledTakeButton
+                  type="button"
+                  disabled={busy}
+                  onClick={takeInWork}
+                >
+                  Взял в работу
+                </StyledTakeButton>
+              )}
+              {flowFor(task.kind)
+                .filter(
+                  (outcome) =>
+                    outcome.value !== 'NO_ANSWER' ||
+                    noAnswerTries < MAX_NO_ANSWER,
+                )
+                .map((outcome) => (
+                  <StyledOutcome
+                    key={outcome.value}
+                    type="button"
+                    disabled={busy}
+                    style={
+                      {
+                        '--pill-bg': `var(--t-tag-background-${outcome.color})`,
+                        '--pill-fg': `var(--t-tag-text-${outcome.color})`,
+                      } as React.CSSProperties
+                    }
+                    onClick={() => {
+                      setNote('');
+                      setNextAt(null);
+                      setPending(outcome.value);
+                      // Показ без даты бессмыслен, а «думает» без бюджета
+                      // и района не отличить от «ничего не узнал».
+                      if (
+                        outcome.needsInfo === true &&
+                        !lead?.budgetMax?.amountMicros &&
+                        !lead?.district
+                      ) {
+                        setStep('need');
+                      } else if (outcome.ask === 'when') {
+                        setStep('when');
+                      } else if (outcome.ask === 'both') {
+                        setStep('when');
+                      } else if (outcome.ask === 'pick') {
+                        setStep('pick');
+                      } else {
+                        setStep('note');
+                      }
+                    }}
+                  >
+                    {outcome.label}
+                  </StyledOutcome>
+                ))}
+              <StyledSnooze type="button" onClick={() => setShowSnooze(true)}>
+                Отложить
               </StyledSnooze>
-            ))}
-            <StyledSnooze type="button" onClick={() => setShowSnooze(false)}>
-              Назад
-            </StyledSnooze>
-          </StyledButtons>
-        ) : (
-          <StyledButtons>
-            {task.status !== 'IN_PROGRESS' && (
-              <StyledTakeButton type="button" disabled={busy} onClick={takeInWork}>
-                Взял в работу — поговорю и вернусь
-              </StyledTakeButton>
-            )}
-            {flowFor(task.kind)
-              .filter(
-                (outcome) =>
-                  outcome.value !== 'NO_ANSWER' || noAnswerTries < MAX_NO_ANSWER,
-              )
-              .map((outcome) => (
-              <StyledOutcome
-                key={outcome.value}
-                type="button"
-                disabled={busy}
-                style={
-                  {
-                    '--pill-bg': `var(--t-tag-background-${outcome.color})`,
-                    '--pill-fg': `var(--t-tag-text-${outcome.color})`,
-                  } as React.CSSProperties
-                }
-                onClick={() => {
-                  setNote('');
-                  setNextAt(null);
-                  setPending(outcome.value);
-                  // Показ без даты бессмыслен, а «думает» без бюджета
-                  // и района не отличить от «ничего не узнал».
-                  if (
-                    outcome.needsInfo === true &&
-                    !lead?.budgetMax?.amountMicros &&
-                    !lead?.district
-                  ) {
-                    setStep('need');
-                  } else if (outcome.ask === 'when') {
-                    setStep('when');
-                  } else if (outcome.ask === 'both') {
-                    setStep('when');
-                  } else if (outcome.ask === 'pick') {
-                    setStep('pick');
-                  } else {
-                    setStep('note');
-                  }
-                }}
-              >
-                {outcome.label}
-              </StyledOutcome>
-            ))}
-            <StyledSnooze type="button" onClick={() => setShowSnooze(true)}>
-              Отложить
-            </StyledSnooze>
-          </StyledButtons>
-        )}
+            </StyledButtons>
+          )}
         </StyledCard>
       </StyledStack>
       <StyledAddLink type="button" onClick={() => setCreating(true)}>
