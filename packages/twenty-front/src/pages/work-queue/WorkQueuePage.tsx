@@ -68,6 +68,7 @@ type TaskTarget = {
 type Lead = {
   __typename: string;
   id: string;
+  waitingSince?: string | null;
   name?: string | null;
   channel?: string | null;
   contactValue?: string | null;
@@ -248,6 +249,25 @@ const StyledName = styled.div`
   font-size: 24px;
   font-weight: ${themeCssVariables.font.weight.semiBold};
   line-height: 1.2;
+`;
+
+const StyledFresh = styled.span`
+  background: var(--t-tag-background-green);
+  border-radius: 4px;
+  color: var(--t-tag-text-green);
+  font-size: ${themeCssVariables.font.size.xs};
+  font-weight: ${themeCssVariables.font.weight.semiBold};
+  letter-spacing: 0.04em;
+  margin-right: 6px;
+  padding: 2px 6px;
+  text-transform: uppercase;
+  vertical-align: middle;
+`;
+
+const StyledAge = styled.div`
+  color: ${themeCssVariables.font.color.light};
+  font-size: ${themeCssVariables.font.size.sm};
+  margin-top: 2px;
 `;
 
 const StyledSub = styled.div<{ isLate: boolean }>`
@@ -559,6 +579,17 @@ const deadlineText = (dueAt?: string | null) => {
   return { late, text: late ? `просрочено на ${amount}` : `осталось ${amount}` };
 };
 
+/** Свежее ли сообщение: меньше часа — значит клиент пишет прямо сейчас. */
+const JUST_WROTE_MINUTES = 60;
+
+const minutesSince = (value?: string | null) =>
+  value ? Math.round((Date.now() - new Date(value).getTime()) / 60000) : null;
+
+const shortDate = (value?: string | null) =>
+  value
+    ? new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+    : null;
+
 const waitingFor = (since?: string | null) => {
   if (!since) return '';
   const minutes = Math.round((Date.now() - new Date(since).getTime()) / 60000);
@@ -793,8 +824,18 @@ export const WorkQueuePage = () => {
         .filter((item) => item.taskId && item.text)
         .map((item) => [item.taskId, item.text as string]),
     );
+    const CLOSED_LABEL: Record<string, string> = {
+      DONE: 'закрыта',
+      CANCELLED: 'отменена',
+    };
+
     return tasks
-      .filter((item) => sameLead.has(item.id) && isDefined(item.outcome))
+      .filter(
+        (item) =>
+          sameLead.has(item.id) &&
+          (isDefined(item.outcome) || item.status === 'DONE' ||
+            item.status === 'CANCELLED'),
+      )
       .sort((a, b) =>
         (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''),
       )
@@ -811,7 +852,8 @@ export const WorkQueuePage = () => {
           Object.values(FLOW)
             .flat()
             .find((outcome) => outcome.value === item.outcome)?.label ??
-          item.outcome,
+          item.outcome ??
+          `${item.title ?? 'Задача'} · ${CLOSED_LABEL[item.status ?? ''] ?? 'закрыта'}`,
         note: textByTask.get(item.id) ?? null,
       }));
   }, [lead, targets, tasks, comments]);
@@ -1071,6 +1113,12 @@ export const WorkQueuePage = () => {
     ? `${lead.phone.primaryPhoneCallingCode ?? ''}${lead.phone.primaryPhoneNumber}`
     : null;
   const isLate = Boolean(task.dueAt && new Date(task.dueAt).getTime() < Date.now());
+  // Старая заявка с только что пришедшим сообщением выглядела заброшенной:
+  // «ждёт 33 дн» считалось от её создания, а клиент написал минуту назад.
+  const waitedMinutes = minutesSince(lead?.waitingSince);
+  const justWrote = waitedMinutes !== null && waitedMinutes < JUST_WROTE_MINUTES;
+  const leadAgeDays = minutesSince(lead?.createdAt);
+  const isOldLead = leadAgeDays !== null && leadAgeDays > 1440;
 
   return (
     <StyledPage>
@@ -1095,14 +1143,18 @@ export const WorkQueuePage = () => {
         <div>
           <StyledName>{lead?.name || 'Заявка недоступна'}</StyledName>
           <StyledSub isLate={isLate}>
+            {justWrote && <StyledFresh>новое сообщение</StyledFresh>}
             {[
               CHANNELS[lead?.channel ?? ''] ?? lead?.channel,
               lead?.contactValue,
-              waitingFor(lead?.createdAt),
+              waitingFor(lead?.waitingSince ?? lead?.createdAt),
             ]
               .filter(Boolean)
               .join(' · ')}
           </StyledSub>
+          {isOldLead && (
+            <StyledAge>заявка от {shortDate(lead?.createdAt)}</StyledAge>
+          )}
         </div>
 
         {phone && <StyledBigLink href={`tel:${phone}`}>Позвонить {phone}</StyledBigLink>}
