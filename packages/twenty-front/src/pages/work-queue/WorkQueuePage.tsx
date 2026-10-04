@@ -41,6 +41,7 @@ type Task = {
   scheduledAt?: string | null;
   updatedAt?: string | null;
   snoozeCount?: number | null;
+  kind?: string | null;
   assigneeId?: string | null;
 };
 
@@ -79,15 +80,67 @@ type Lead = {
   chatLink?: { primaryLinkUrl?: string | null } | null;
 };
 
-/** Подписи совпадают с теми, что лежат в базе: брокер увидит их же в карточке. */
-const OUTCOMES = [
-  { value: 'NO_ANSWER', label: 'Не дозвонился', color: 'orange' },
-  { value: 'THINKING', label: 'Поговорил, думает', color: 'yellow' },
-  { value: 'SHOWING_SET', label: 'Записал на показ', color: 'blue' },
-  { value: 'NO_SHOW', label: 'На показ не пришёл', color: 'red' },
-  { value: 'BOOKED', label: 'Внёс бронь', color: 'green' },
-  { value: 'REFUSED', label: 'Отказ', color: 'gray' },
-] as const;
+/**
+ * Исходы по видам задач — явный флоу на каждую.
+ *
+ * На показе бессмысленно предлагать «не дозвонился», на договоре —
+ * «записал на показ». Поэтому набор кнопок зависит от вида задачи,
+ * а не один на всё. Подписи и значения совпадают с теми, что в базе:
+ * брокер увидит их же в карточке заявки и в истории.
+ *
+ * Та же карта продублирована в триггере `ops.task_outcome_apply`. Общий
+ * справочник потребовал бы отдельного объекта и ручки ради десятка строк,
+ * которые меняются раз в полгода. Правишь здесь — правь и там.
+ */
+type Outcome = {
+  value: string;
+  label: string;
+  color: string;
+  needsDate?: boolean;
+  needsInfo?: boolean;
+  needsReason?: boolean;
+};
+
+const CONTACT_FLOW: Outcome[] = [
+  { value: 'NO_ANSWER', label: 'Не отвечает', color: 'orange' },
+  { value: 'THINKING', label: 'Думает', color: 'yellow', needsInfo: true },
+  { value: 'SHOWING_SET', label: 'Договорились на показ', color: 'blue', needsDate: true },
+  { value: 'POSTPONED', label: 'Отложить надолго', color: 'sky', needsDate: true },
+  { value: 'REFUSED', label: 'Отказ', color: 'red', needsReason: true },
+  { value: 'NOT_OURS', label: 'Не наш клиент', color: 'gray' },
+];
+
+const FLOW: Record<string, Outcome[]> = {
+  FIRST_TOUCH: CONTACT_FLOW,
+  FOLLOWUP: CONTACT_FLOW,
+  MANUAL: CONTACT_FLOW,
+  SHOWING: [
+    { value: 'THINKING', label: 'Показ был, думает', color: 'yellow' },
+    { value: 'NO_SHOW', label: 'Не пришёл', color: 'red' },
+    { value: 'RESCHEDULED', label: 'Перенесли', color: 'blue', needsDate: true },
+    { value: 'BOOKED', label: 'Внёс бронь', color: 'purple' },
+    { value: 'REFUSED', label: 'Отказ', color: 'red', needsReason: true },
+  ],
+  CONTRACT: [
+    { value: 'CONTRACT_SIGNED', label: 'Договор подписан', color: 'green' },
+    { value: 'DELAYED', label: 'Переносится', color: 'orange' },
+    { value: 'REFUSED', label: 'Сорвалось', color: 'red', needsReason: true },
+  ],
+  PAYMENT: [
+    { value: 'PAID', label: 'Оплачено', color: 'green' },
+    { value: 'DELAYED', label: 'Ждём оплату', color: 'orange' },
+    { value: 'REFUSED', label: 'Сорвалось', color: 'red', needsReason: true },
+  ],
+};
+
+const flowFor = (kind?: string | null) => FLOW[kind ?? 'MANUAL'] ?? CONTACT_FLOW;
+
+/** Подпись над кнопкой выбора дня — зависит от того, что назначаем. */
+const DATE_PROMPT: Record<string, string> = {
+  SHOWING_SET: 'Когда показ?',
+  RESCHEDULED: 'На когда перенесли?',
+  POSTPONED: 'Когда вернуться к клиенту?',
+};
 
 const SNOOZES = [
   { label: 'Через час', hours: 1 },
@@ -427,6 +480,25 @@ const StyledOutcome = styled.button`
   font-weight: ${themeCssVariables.font.weight.medium};
   min-height: 52px;
   padding: 8px;
+
+  &:disabled {
+    opacity: 0.5;
+  }
+`;
+
+/** Отдельная кнопка над исходами: она не закрывает задачу, а снимает
+ *  таймер на время разговора. Поэтому и выглядит иначе. */
+const StyledTakeButton = styled.button`
+  background: var(--t-tag-background-sky);
+  border: 0;
+  border-radius: 8px;
+  color: var(--t-tag-text-sky);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: ${themeCssVariables.font.size.md};
+  font-weight: ${themeCssVariables.font.weight.medium};
+  grid-column: span 2;
+  min-height: 48px;
 
   &:disabled {
     opacity: 0.5;
@@ -784,7 +856,9 @@ export const WorkQueuePage = () => {
             })
           : '',
         label:
-          OUTCOMES.find((outcome) => outcome.value === item.outcome)?.label ??
+          Object.values(FLOW)
+            .flat()
+            .find((outcome) => outcome.value === item.outcome)?.label ??
           item.outcome,
         note: textByTask.get(item.id) ?? null,
       }));
@@ -896,6 +970,21 @@ export const WorkQueuePage = () => {
       comment: '',
     });
     setCreating(false);
+    await Promise.all([refetchTasks(), refetchTargets(), refetchLeads()]);
+    setBusy(false);
+  };
+
+  /** «Взял в работу»: брокер связался — звонком, в чате, как угодно.
+   *  Таймер норматива снимается, но задача не закрывается: итог он скажет,
+   *  когда разговор кончится. */
+  const takeInWork = async () => {
+    if (!task || busy) return;
+    setBusy(true);
+    await updateOneRecord({
+      idToUpdate: task.id,
+      updateOneRecordInput: { status: 'IN_PROGRESS' },
+      objectNameSingular: 'task',
+    });
     await Promise.all([refetchTasks(), refetchTargets(), refetchLeads()]);
     setBusy(false);
   };
@@ -1135,7 +1224,9 @@ export const WorkQueuePage = () => {
         )}
 
         <StyledTodo>
-          <StyledTodoLabel>Что сделать</StyledTodoLabel>
+          <StyledTodoLabel>
+            {task.status === 'IN_PROGRESS' ? 'В работе' : 'Что сделать'}
+          </StyledTodoLabel>
           {task.title || 'Задача'}
           {(() => {
             const deadline = deadlineText(task.dueAt);
@@ -1155,7 +1246,7 @@ export const WorkQueuePage = () => {
           </StyledWants>
         ) : pending && step === 'date' ? (
           <StyledReasonBox>
-            <StyledHint>Когда показ?</StyledHint>
+            <StyledHint>{DATE_PROMPT[pending] ?? 'На когда?'}</StyledHint>
             <StyledButtons>
               {SHOW_DAYS.map((day) => (
                 <StyledSnooze
@@ -1270,8 +1361,8 @@ export const WorkQueuePage = () => {
               </StyledFacts>
             )}
             <StyledHint>
-              {OUTCOMES.find((item) => item.value === pending)?.label}. Что
-              получилось? Без этого задачу не закрыть.
+              {flowFor(task.kind).find((item) => item.value === pending)?.label}.
+              Что получилось? Без этого задачу не закрыть.
             </StyledHint>
             <StyledInput
               autoFocus
@@ -1297,10 +1388,10 @@ export const WorkQueuePage = () => {
                 style={
                   {
                     '--pill-bg': `var(--t-tag-background-${
-                      OUTCOMES.find((item) => item.value === pending)?.color ?? 'gray'
+                      flowFor(task.kind).find((i) => i.value === pending)?.color ?? 'gray'
                     })`,
                     '--pill-fg': `var(--t-tag-text-${
-                      OUTCOMES.find((item) => item.value === pending)?.color ?? 'gray'
+                      flowFor(task.kind).find((i) => i.value === pending)?.color ?? 'gray'
                     })`,
                   } as React.CSSProperties
                 }
@@ -1328,10 +1419,17 @@ export const WorkQueuePage = () => {
           </StyledButtons>
         ) : (
           <StyledButtons>
-            {OUTCOMES.filter(
-              (outcome) =>
-                outcome.value !== 'NO_ANSWER' || noAnswerTries < MAX_NO_ANSWER,
-            ).map((outcome) => (
+            {task.status !== 'IN_PROGRESS' && (
+              <StyledTakeButton type="button" disabled={busy} onClick={takeInWork}>
+                Взял в работу — поговорю и вернусь
+              </StyledTakeButton>
+            )}
+            {flowFor(task.kind)
+              .filter(
+                (outcome) =>
+                  outcome.value !== 'NO_ANSWER' || noAnswerTries < MAX_NO_ANSWER,
+              )
+              .map((outcome) => (
               <StyledOutcome
                 key={outcome.value}
                 type="button"
@@ -1348,10 +1446,10 @@ export const WorkQueuePage = () => {
                   setPending(outcome.value);
                   // Показ без даты бессмыслен, а «думает» без бюджета
                   // и района не отличить от «ничего не узнал».
-                  if (outcome.value === 'SHOWING_SET') {
+                  if (outcome.needsDate === true) {
                     setStep('date');
                   } else if (
-                    outcome.value === 'THINKING' &&
+                    outcome.needsInfo === true &&
                     !lead?.budgetMax?.amountMicros &&
                     !lead?.district
                   ) {
