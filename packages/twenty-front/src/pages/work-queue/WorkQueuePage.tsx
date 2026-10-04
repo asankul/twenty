@@ -133,6 +133,15 @@ const FLOW: Record<string, Outcome[]> = {
   ],
 };
 
+/** Кыргызский мобильный из того, что набрал брокер: он пишет и «0990886388»,
+ *  и «+996 706 80 16 94», и «706 23 37 75». Разбираем по цифрам. */
+const kgPhone = (raw: string) => {
+  let num = raw.replace(/\D/g, '');
+  if (num.startsWith('996') && num.length === 12) num = num.slice(3);
+  else if (num.startsWith('0') && num.length === 10) num = num.slice(1);
+  return num.length === 9 && '23579'.includes(num[0]) ? num : null;
+};
+
 const flowFor = (kind?: string | null) => FLOW[kind ?? 'MANUAL'] ?? CONTACT_FLOW;
 
 /** Подпись над кнопкой выбора дня — зависит от того, что назначаем. */
@@ -1164,14 +1173,32 @@ export const WorkQueuePage = () => {
           </StyledChatLink>
         )}
 
-        {lead?.lastMessage ? (
-          <StyledSaid>«{lead.lastMessage}»</StyledSaid>
-        ) : (
-          <StyledSaidEmpty>Клиент ничего не написал</StyledSaidEmpty>
-        )}
+        <div>
+          <StyledTodoLabel>Последнее сообщение клиента</StyledTodoLabel>
+          {lead?.lastMessage ? (
+            <StyledSaid>«{lead.lastMessage}»</StyledSaid>
+          ) : (
+            <StyledSaidEmpty>Клиент ничего не написал</StyledSaidEmpty>
+          )}
+        </div>
 
         <StyledFacts>
-          <Fact label="Телефон" value={phone} />
+          <Fact
+            label="Телефон"
+            value={phone}
+            placeholder="0990 88 63 88"
+            onSave={(raw) => {
+              const num = kgPhone(raw);
+              if (!num) return;
+              saveLead({
+                phone: {
+                  primaryPhoneNumber: num,
+                  primaryPhoneCallingCode: '+996',
+                  primaryPhoneCountryCode: 'KG',
+                },
+              });
+            }}
+          />
           <Fact
             label="Бюджет до"
             value={money(lead?.budgetMax)}
