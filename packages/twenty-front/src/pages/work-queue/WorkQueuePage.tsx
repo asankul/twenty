@@ -4,6 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { themeCssVariables } from 'twenty-ui/theme';
 
 import { currentWorkspaceMemberState } from '@/auth/states/currentWorkspaceMemberState';
+import {
+  DATE_PROMPT,
+  FLOW,
+  flowFor,
+} from '@/activities/tasks/constants/TaskFlow';
 import { useCreateOneRecord } from '@/object-record/hooks/useCreateOneRecord';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
@@ -80,59 +85,6 @@ type Lead = {
   chatLink?: { primaryLinkUrl?: string | null } | null;
 };
 
-/**
- * Исходы по видам задач — явный флоу на каждую.
- *
- * На показе бессмысленно предлагать «не дозвонился», на договоре —
- * «записал на показ». Поэтому набор кнопок зависит от вида задачи,
- * а не один на всё. Подписи и значения совпадают с теми, что в базе:
- * брокер увидит их же в карточке заявки и в истории.
- *
- * Та же карта продублирована в триггере `ops.task_outcome_apply`. Общий
- * справочник потребовал бы отдельного объекта и ручки ради десятка строк,
- * которые меняются раз в полгода. Правишь здесь — правь и там.
- */
-type Outcome = {
-  value: string;
-  label: string;
-  color: string;
-  needsDate?: boolean;
-  needsInfo?: boolean;
-  needsReason?: boolean;
-};
-
-const CONTACT_FLOW: Outcome[] = [
-  { value: 'NO_ANSWER', label: 'Не отвечает', color: 'orange' },
-  { value: 'THINKING', label: 'Думает', color: 'yellow', needsInfo: true },
-  { value: 'SHOWING_SET', label: 'Договорились на показ', color: 'blue', needsDate: true },
-  { value: 'POSTPONED', label: 'Отложить надолго', color: 'sky', needsDate: true },
-  { value: 'REFUSED', label: 'Отказ', color: 'red', needsReason: true },
-  { value: 'NOT_OURS', label: 'Не наш клиент', color: 'gray' },
-];
-
-const FLOW: Record<string, Outcome[]> = {
-  FIRST_TOUCH: CONTACT_FLOW,
-  FOLLOWUP: CONTACT_FLOW,
-  MANUAL: CONTACT_FLOW,
-  SHOWING: [
-    { value: 'THINKING', label: 'Показ был, думает', color: 'yellow' },
-    { value: 'NO_SHOW', label: 'Не пришёл', color: 'red' },
-    { value: 'RESCHEDULED', label: 'Перенесли', color: 'blue', needsDate: true },
-    { value: 'BOOKED', label: 'Внёс бронь', color: 'purple' },
-    { value: 'REFUSED', label: 'Отказ', color: 'red', needsReason: true },
-  ],
-  CONTRACT: [
-    { value: 'CONTRACT_SIGNED', label: 'Договор подписан', color: 'green' },
-    { value: 'DELAYED', label: 'Переносится', color: 'orange' },
-    { value: 'REFUSED', label: 'Сорвалось', color: 'red', needsReason: true },
-  ],
-  PAYMENT: [
-    { value: 'PAID', label: 'Оплачено', color: 'green' },
-    { value: 'DELAYED', label: 'Ждём оплату', color: 'orange' },
-    { value: 'REFUSED', label: 'Сорвалось', color: 'red', needsReason: true },
-  ],
-};
-
 /** Кыргызский мобильный из того, что набрал брокер: он пишет и «0990886388»,
  *  и «+996 706 80 16 94», и «706 23 37 75». Разбираем по цифрам. */
 const kgPhone = (raw: string) => {
@@ -140,15 +92,6 @@ const kgPhone = (raw: string) => {
   if (num.startsWith('996') && num.length === 12) num = num.slice(3);
   else if (num.startsWith('0') && num.length === 10) num = num.slice(1);
   return num.length === 9 && '23579'.includes(num[0]) ? num : null;
-};
-
-const flowFor = (kind?: string | null) => FLOW[kind ?? 'MANUAL'] ?? CONTACT_FLOW;
-
-/** Подпись над кнопкой выбора дня — зависит от того, что назначаем. */
-const DATE_PROMPT: Record<string, string> = {
-  SHOWING_SET: 'Когда показ?',
-  RESCHEDULED: 'На когда перенесли?',
-  POSTPONED: 'Когда вернуться к клиенту?',
 };
 
 const SNOOZES = [

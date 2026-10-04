@@ -4,6 +4,7 @@ import type React from 'react';
 import { type ReactNode, useRef, useState } from 'react';
 
 import { ActivityRow } from '@/activities/components/ActivityRow';
+import { flowFor } from '@/activities/tasks/constants/TaskFlow';
 import { TaskComments } from '@/activities/tasks/components/TaskComments';
 import { useCompleteTask } from '@/activities/tasks/hooks/useCompleteTask';
 import { type Task } from '@/activities/types/Task';
@@ -277,23 +278,6 @@ const TaskDate = ({
   );
 };
 
-/**
- * Результаты задачи.
- *
- * Подписи на кнопках короткие, полные — в подсказке: шесть длинных надписей
- * не умещаются в боковой панели. Строки намеренно не через `t`: значения
- * и их названия живут в базе по-русски, и кнопка обязана совпадать с тем,
- * что потом видно в поле.
- */
-const OUTCOMES = [
-  { value: 'NO_ANSWER', short: 'Не дозвонился', full: 'Не дозвонился', color: 'orange' },
-  { value: 'THINKING', short: 'Думает', full: 'Поговорил, думает', color: 'yellow' },
-  { value: 'SHOWING_SET', short: 'На показ', full: 'Записал на показ', color: 'blue' },
-  { value: 'NO_SHOW', short: 'Не пришёл', full: 'На показ не пришёл', color: 'red' },
-  { value: 'BOOKED', short: 'Бронь', full: 'Внёс бронь', color: 'green' },
-  { value: 'REFUSED', short: 'Отказ', full: 'Отказ', color: 'gray' },
-] as const;
-
 const StyledOutcomeRow = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -481,12 +465,13 @@ export const TaskRow = ({ task }: { task: Task }) => {
           <IconX size={14} />
         </StyledCancelButton>
       </StyledMetaRow>
+      {!isClosed && (
       <StyledOutcomeRow>
-        {OUTCOMES.map((outcome) => (
+        {flowFor(task.kind).map((outcome) => (
           <StyledOutcomeButton
             key={outcome.value}
             type="button"
-            title={outcome.full}
+            title={outcome.label}
             isChosen={task.outcome === outcome.value}
             style={
               {
@@ -500,10 +485,11 @@ export const TaskRow = ({ task }: { task: Task }) => {
               setAreCommentsOpen(true);
             }}
           >
-            {outcome.short}
+            {outcome.label}
           </StyledOutcomeButton>
         ))}
       </StyledOutcomeRow>
+      )}
 
       {areCommentsOpen && (
         <div onClick={(event) => event.stopPropagation()}>
