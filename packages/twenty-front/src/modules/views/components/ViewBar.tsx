@@ -5,6 +5,7 @@ import { useRecordIndexContextOrThrow } from '@/object-record/record-index/conte
 import { TopBar } from '@/ui/layout/top-bar/components/TopBar';
 import { QueryParamsFiltersEffect } from '@/views/components/QueryParamsFiltersEffect';
 import { QueryParamsSortsEffect } from '@/views/components/QueryParamsSortsEffect';
+import { ViewBarSearchInput } from '@/views/components/ViewBarSearchInput';
 import { ViewBarPageTitle } from '@/views/components/ViewBarPageTitle';
 import { ViewPickerDropdown } from '@/views/view-picker/components/ViewPickerDropdown';
 
@@ -65,6 +66,7 @@ export const ViewBar = ({
         leftComponent={<ViewPickerDropdown />}
         rightComponent={
           <>
+            <ViewBarSearchInput />
             <ObjectFilterDropdownComponentInstanceContext.Provider
               value={{ instanceId: getViewBarFilterDropdownId(recordIndexId) }}
             >
