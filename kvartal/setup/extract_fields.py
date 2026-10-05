@@ -26,7 +26,7 @@ SEP = "\x1f"
 def psql(sql):
     """Запрос уходит в stdin: по дороге к боевой базе стоит ещё один шелл,
     и он разорвал бы многострочный SQL на словах."""
-    cmd = os.environ.get("PSQL", "psql").split() + ["-At", "-F", SEP]
+    cmd = os.environ.get("PSQL", "psql").split() + ["-At", "-F", SEP, "-v", "ON_ERROR_STOP=1"]
     out = subprocess.run(cmd, input=sql, capture_output=True, text=True)
     if out.returncode != 0:
         sys.exit(f"Запрос не прошёл:\n{out.stderr}")
