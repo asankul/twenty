@@ -1,0 +1,860 @@
+[
+    {
+        "icon": "IconCoins",
+        "label": "Бюджет до",
+        "тип": "CURRENCY",
+        "nullable": true,
+        "readonly": false,
+        "поле": "budgetMax",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconMessage",
+        "label": "Канал",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "channel",
+        "объект": "opportunity",
+        "значения": [
+            {
+                "color": "blue",
+                "label": "Телефон",
+                "value": "PHONE"
+            },
+            {
+                "color": "pink",
+                "label": "Инстаграм",
+                "value": "INSTAGRAM"
+            },
+            {
+                "color": "green",
+                "label": "Вотсап",
+                "value": "WHATSAPP"
+            },
+            {
+                "color": "sky",
+                "label": "Телеграм",
+                "value": "TELEGRAM"
+            },
+            {
+                "color": "gray",
+                "label": "Почта",
+                "value": "EMAIL"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconHash",
+        "label": "Номер контакта",
+        "тип": "NUMBER",
+        "nullable": true,
+        "readonly": false,
+        "поле": "chatContactId",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconHash",
+        "label": "Номер диалога",
+        "тип": "NUMBER",
+        "nullable": true,
+        "readonly": false,
+        "поле": "chatConversationId",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconMessageCircle",
+        "label": "Переписка",
+        "тип": "LINKS",
+        "nullable": true,
+        "readonly": false,
+        "поле": "chatLink",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconNotes",
+        "label": "Примечание",
+        "тип": "TEXT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "comment",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconAt",
+        "label": "Контакт в канале",
+        "тип": "TEXT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "contactValue",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconMap2",
+        "label": "Район",
+        "тип": "TEXT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "district",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconMessageCircle",
+        "label": "Есть переписка",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "hasChat",
+        "объект": "opportunity",
+        "значения": [
+            {
+                "color": "green",
+                "label": "Есть чат",
+                "value": "YES"
+            },
+            {
+                "color": "red",
+                "label": "Чата нет",
+                "value": "NO"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconMessage2",
+        "label": "Последнее сообщение",
+        "тип": "TEXT",
+        "nullable": true,
+        "readonly": true,
+        "поле": "lastMessage",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconAffiliate",
+        "label": "Источник",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "leadSource",
+        "объект": "opportunity",
+        "значения": [
+            {
+                "color": "blue",
+                "label": "Instagram",
+                "value": "SRC_1"
+            },
+            {
+                "color": "pink",
+                "label": "Звонок",
+                "value": "SRC_2"
+            },
+            {
+                "color": "green",
+                "label": "Сайт",
+                "value": "SRC_3"
+            },
+            {
+                "color": "sky",
+                "label": "Рекомендация",
+                "value": "SRC_4"
+            },
+            {
+                "color": "purple",
+                "label": "Наружная реклама",
+                "value": "SRC_5"
+            },
+            {
+                "color": "orange",
+                "label": "Пришёл в офис",
+                "value": "SRC_6"
+            },
+            {
+                "color": "turquoise",
+                "label": "2GIS",
+                "value": "SRC_7"
+            },
+            {
+                "color": "yellow",
+                "label": "Другое",
+                "value": "SRC_8"
+            },
+            {
+                "color": "red",
+                "label": "WhatsApp",
+                "value": "SRC_9"
+            },
+            {
+                "color": "gray",
+                "label": "Telegram",
+                "value": "SRC_10"
+            },
+            {
+                "color": "blue",
+                "label": "Instagram Direct",
+                "value": "SRC_11"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconArchive",
+        "label": "Причина потери",
+        "тип": "TEXT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "lostReason",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconUserCheck",
+        "label": "Ответственный в старой системе",
+        "тип": "TEXT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "managerName",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconPhone",
+        "label": "Телефон",
+        "тип": "PHONES",
+        "nullable": true,
+        "readonly": false,
+        "поле": "phone",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconFlame",
+        "label": "Важность",
+        "тип": "NUMBER",
+        "nullable": true,
+        "readonly": true,
+        "поле": "priority",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconDoor",
+        "label": "Комнат",
+        "тип": "NUMBER",
+        "nullable": true,
+        "readonly": false,
+        "поле": "rooms",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconUsersGroup",
+        "label": "Команда",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "team",
+        "объект": "opportunity",
+        "значения": [
+            {
+                "color": "blue",
+                "label": "Керимбекова Айчурок",
+                "value": "TEAM_1"
+            },
+            {
+                "color": "green",
+                "label": "Арстанбек кызы Таалайкан",
+                "value": "TEAM_2"
+            },
+            {
+                "color": "orange",
+                "label": "Алканов Тилек",
+                "value": "TEAM_3"
+            },
+            {
+                "color": "purple",
+                "label": "Бузурманкулов Дастан",
+                "value": "TEAM_4"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconHourglassHigh",
+        "label": "Без ответа",
+        "тип": "TEXT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "touchAge",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconHourglass",
+        "label": "Минут до касания",
+        "тип": "NUMBER",
+        "nullable": true,
+        "readonly": false,
+        "поле": "touchMinutes",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconClockBolt",
+        "label": "Первое касание",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "touchStatus",
+        "объект": "opportunity",
+        "значения": [
+            {
+                "color": "green",
+                "label": "В срок",
+                "value": "ON_TIME"
+            },
+            {
+                "color": "yellow",
+                "label": "Ждёт",
+                "value": "WAITING"
+            },
+            {
+                "color": "red",
+                "label": "Просрочено",
+                "value": "LATE"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconHourglassHigh",
+        "label": "Ждёт с",
+        "тип": "DATE_TIME",
+        "nullable": true,
+        "readonly": true,
+        "поле": "waitingSince",
+        "объект": "opportunity",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconCoins",
+        "label": "Бюджет до",
+        "тип": "CURRENCY",
+        "nullable": true,
+        "readonly": false,
+        "поле": "budgetMax",
+        "объект": "person",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconMap",
+        "label": "Район",
+        "тип": "TEXT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "district",
+        "объект": "person",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconCalendarTime",
+        "label": "Срок покупки",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "horizon",
+        "объект": "person",
+        "значения": [
+            {
+                "color": "blue",
+                "label": "Сейчас",
+                "value": "NOW"
+            },
+            {
+                "color": "pink",
+                "label": "В течение квартала",
+                "value": "QUARTER"
+            },
+            {
+                "color": "green",
+                "label": "Полгода",
+                "value": "HALF_YEAR"
+            },
+            {
+                "color": "sky",
+                "label": "Год",
+                "value": "YEAR"
+            },
+            {
+                "color": "purple",
+                "label": "Позже",
+                "value": "LATER"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconBrandInstagram",
+        "label": "Мессенджер",
+        "тип": "TEXT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "messenger",
+        "объект": "person",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconCreditCard",
+        "label": "Форма оплаты",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "payment",
+        "объект": "person",
+        "значения": [
+            {
+                "color": "blue",
+                "label": "Рассрочка",
+                "value": "INSTALLMENT"
+            },
+            {
+                "color": "pink",
+                "label": "Наличные",
+                "value": "CASH"
+            },
+            {
+                "color": "green",
+                "label": "Ипотека",
+                "value": "MORTGAGE"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconTargetArrow",
+        "label": "Цель покупки",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "purpose",
+        "объект": "person",
+        "значения": [
+            {
+                "color": "blue",
+                "label": "Для себя",
+                "value": "PERSONAL"
+            },
+            {
+                "color": "pink",
+                "label": "Инвестиция",
+                "value": "INVESTMENT"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconDoor",
+        "label": "Комнат",
+        "тип": "NUMBER",
+        "nullable": true,
+        "readonly": false,
+        "поле": "rooms",
+        "объект": "person",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconRoute",
+        "label": "Вид задачи",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": true,
+        "поле": "kind",
+        "объект": "task",
+        "значения": [
+            {
+                "color": "sky",
+                "label": "Первое касание",
+                "value": "FIRST_TOUCH"
+            },
+            {
+                "color": "orange",
+                "label": "Повторный контакт",
+                "value": "FOLLOWUP"
+            },
+            {
+                "color": "blue",
+                "label": "Показ",
+                "value": "SHOWING"
+            },
+            {
+                "color": "yellow",
+                "label": "Договор",
+                "value": "CONTRACT"
+            },
+            {
+                "color": "green",
+                "label": "Оплата",
+                "value": "PAYMENT"
+            },
+            {
+                "color": "gray",
+                "label": "Своя задача",
+                "value": "MANUAL"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconCalendarPlus",
+        "label": "Дата следующего шага",
+        "тип": "DATE_TIME",
+        "nullable": true,
+        "readonly": false,
+        "поле": "nextAt",
+        "объект": "task",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconFlag",
+        "label": "Результат",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "outcome",
+        "объект": "task",
+        "значения": [
+            {
+                "color": "orange",
+                "label": "Не отвечает",
+                "value": "NO_ANSWER"
+            },
+            {
+                "color": "yellow",
+                "label": "Думает",
+                "value": "THINKING"
+            },
+            {
+                "color": "sky",
+                "label": "Отложить надолго",
+                "value": "POSTPONED"
+            },
+            {
+                "color": "blue",
+                "label": "Договорились на показ",
+                "value": "SHOWING_SET"
+            },
+            {
+                "color": "red",
+                "label": "Не пришёл",
+                "value": "NO_SHOW"
+            },
+            {
+                "color": "blue",
+                "label": "Перенесли",
+                "value": "RESCHEDULED"
+            },
+            {
+                "color": "purple",
+                "label": "Внёс бронь",
+                "value": "BOOKED"
+            },
+            {
+                "color": "yellow",
+                "label": "Договор подписан",
+                "value": "CONTRACT_SIGNED"
+            },
+            {
+                "color": "orange",
+                "label": "Переносится",
+                "value": "DELAYED"
+            },
+            {
+                "color": "green",
+                "label": "Оплачено",
+                "value": "PAID"
+            },
+            {
+                "color": "red",
+                "label": "Отказ",
+                "value": "REFUSED"
+            },
+            {
+                "color": "gray",
+                "label": "Не наш клиент",
+                "value": "NOT_OURS"
+            },
+            {
+                "color": "green",
+                "label": "Сделал",
+                "value": "COMPLETED"
+            },
+            {
+                "color": "gray",
+                "label": "Отменить",
+                "value": "DROPPED"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconFlame",
+        "label": "Важность",
+        "тип": "NUMBER",
+        "nullable": true,
+        "readonly": true,
+        "поле": "priority",
+        "объект": "task",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconCalendarEvent",
+        "label": "Когда делать",
+        "тип": "DATE_TIME",
+        "nullable": true,
+        "readonly": false,
+        "поле": "scheduledAt",
+        "объект": "task",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconClockExclamation",
+        "label": "Срок по SLA",
+        "тип": "DATE_TIME",
+        "nullable": true,
+        "readonly": false,
+        "поле": "slaDueAt",
+        "объект": "task",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconClock",
+        "label": "SLA, мин",
+        "тип": "NUMBER",
+        "nullable": true,
+        "readonly": false,
+        "поле": "slaMinutes",
+        "объект": "task",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconAlertTriangle",
+        "label": "Статус SLA",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "slaStatus",
+        "объект": "task",
+        "значения": [
+            {
+                "color": "green",
+                "label": "В срок",
+                "value": "ON_TIME"
+            },
+            {
+                "color": "orange",
+                "label": "Горит",
+                "value": "WARNING"
+            },
+            {
+                "color": "red",
+                "label": "Просрочено",
+                "value": "LATE"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconClockPause",
+        "label": "Переносов",
+        "тип": "NUMBER",
+        "nullable": true,
+        "readonly": true,
+        "поле": "snoozeCount",
+        "объект": "task",
+        "значения": null,
+        "настройки": null,
+        "умолчание": "0"
+    },
+    {
+        "icon": "IconUsersGroup",
+        "label": "Команда",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "team",
+        "объект": "task",
+        "значения": [
+            {
+                "color": "blue",
+                "label": "Керимбекова Айчурок",
+                "value": "TEAM_1"
+            },
+            {
+                "color": "green",
+                "label": "Арстанбек кызы Таалайкан",
+                "value": "TEAM_2"
+            },
+            {
+                "color": "orange",
+                "label": "Алканов Тилек",
+                "value": "TEAM_3"
+            },
+            {
+                "color": "purple",
+                "label": "Бузурманкулов Дастан",
+                "value": "TEAM_4"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconMessageCircle",
+        "label": "Оператор KulpunAI",
+        "тип": "NUMBER",
+        "nullable": true,
+        "readonly": false,
+        "поле": "kulpunaiAgentId",
+        "объект": "workspaceMember",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconHierarchy",
+        "label": "Роль в команде",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "seniority",
+        "объект": "workspaceMember",
+        "значения": [
+            {
+                "color": "purple",
+                "label": "Старший брокер",
+                "value": "SENIOR"
+            },
+            {
+                "color": "blue",
+                "label": "Брокер",
+                "value": "BROKER"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconUsersGroup",
+        "label": "Команда",
+        "тип": "SELECT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "team",
+        "объект": "workspaceMember",
+        "значения": [
+            {
+                "color": "blue",
+                "label": "Керимбекова Айчурок",
+                "value": "TEAM_1"
+            },
+            {
+                "color": "green",
+                "label": "Арстанбек кызы Таалайкан",
+                "value": "TEAM_2"
+            },
+            {
+                "color": "orange",
+                "label": "Алканов Тилек",
+                "value": "TEAM_3"
+            },
+            {
+                "color": "purple",
+                "label": "Бузурманкулов Дастан",
+                "value": "TEAM_4"
+            }
+        ],
+        "настройки": null,
+        "умолчание": null
+    },
+    {
+        "icon": "IconBrandTelegram",
+        "label": "Телеграм",
+        "тип": "TEXT",
+        "nullable": true,
+        "readonly": false,
+        "поле": "telegramChatId",
+        "объект": "workspaceMember",
+        "значения": null,
+        "настройки": null,
+        "умолчание": null
+    }
+]

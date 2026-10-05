@@ -1,0 +1,57 @@
+{
+    "поле": "stage",
+    "объект": "opportunity",
+    "значения": [
+        {
+            "color": "gray",
+            "label": "Необработанные",
+            "value": "NEW"
+        },
+        {
+            "color": "sky",
+            "label": "Первый контакт",
+            "value": "CONTACTED"
+        },
+        {
+            "color": "turquoise",
+            "label": "Квалифицированные",
+            "value": "QUALIFIED"
+        },
+        {
+            "color": "blue",
+            "label": "Назначена встреча",
+            "value": "MEETING"
+        },
+        {
+            "color": "purple",
+            "label": "Бронь",
+            "value": "BOOKED"
+        },
+        {
+            "color": "yellow",
+            "label": "Договор",
+            "value": "CONTRACT"
+        },
+        {
+            "color": "green",
+            "label": "Оплачено",
+            "value": "CLOSED_WON"
+        },
+        {
+            "color": "orange",
+            "label": "Отложен",
+            "value": "NURTURE"
+        },
+        {
+            "color": "red",
+            "label": "Отказ",
+            "value": "IRRELEVANT"
+        },
+        {
+            "color": "gray",
+            "label": "Не наш",
+            "value": "UNQUALIFIED"
+        }
+    ],
+    "примечание": "стандартное поле Twenty, мы заменили список значений"
+}
