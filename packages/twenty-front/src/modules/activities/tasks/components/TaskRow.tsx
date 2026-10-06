@@ -4,7 +4,7 @@ import type React from 'react';
 import { type ReactNode, useRef, useState } from 'react';
 
 import { ActivityRow } from '@/activities/components/ActivityRow';
-import { flowFor } from '@/activities/tasks/constants/TaskFlow';
+import { useTaskFlow } from '@/activities/tasks/hooks/useTaskFlow';
 import { TaskComments } from '@/activities/tasks/components/TaskComments';
 import { useCompleteTask } from '@/activities/tasks/hooks/useCompleteTask';
 import { type Task } from '@/activities/types/Task';
@@ -308,6 +308,7 @@ const StyledOutcomeButton = styled.button<{ isChosen: boolean }>`
 `;
 
 export const TaskRow = ({ task }: { task: Task }) => {
+  const { flowFor } = useTaskFlow();
   const { updateOneRecord } = useUpdateOneRecord();
   const { openRecordInSidePanel } = useOpenRecordInSidePanel();
   const [title, setTitle] = useState(task.title ?? '');

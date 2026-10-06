@@ -7,11 +7,9 @@ import { currentWorkspaceMemberState } from '@/auth/states/currentWorkspaceMembe
 import {
   DAY_WHEN,
   RETRY_WHEN,
-  flowFor,
   OTHER_CHOICE,
-  outcomeIn,
-  outcomeLabel,
 } from '@/activities/tasks/constants/TaskFlow';
+import { useTaskFlow } from '@/activities/tasks/hooks/useTaskFlow';
 import { useCreateOneRecord } from '@/object-record/hooks/useCreateOneRecord';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
@@ -786,6 +784,9 @@ const Fact = ({
 
 export const WorkQueuePage = () => {
   const me = useAtomStateValue(currentWorkspaceMemberState) as Member | null;
+  // Набор кнопок и подписи берутся из метаданных кабинета: у школы свои
+  // исходы, и зашивать их в код значит пересобирать образ ради формулировки.
+  const { flowFor, outcomeIn, outcomeLabel } = useTaskFlow();
   const [pending, setPending] = useState<string | null>(null);
   const [step, setStep] = useState<'when' | 'need' | 'note' | 'pick'>('note');
   const [nextAt, setNextAt] = useState<string | null>(null);

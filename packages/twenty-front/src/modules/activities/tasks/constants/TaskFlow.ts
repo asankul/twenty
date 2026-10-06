@@ -259,3 +259,53 @@ export const outcomeLabel = (value?: string | null) =>
     .find((item) => item.value === value)?.label ??
   value ??
   null;
+
+/**
+ * Сборка набора кнопок из метаданных поля `outcome`.
+ *
+ * Зашитая выше карта — квартальная: показ, бронь, договор. Школе нужны
+ * совсем другие исходы, и держать их в коде значит пересобирать образ
+ * ради каждой правки формулировки. Поэтому карта переезжает в базу:
+ *
+ *   options  — надпись и цвет каждого исхода, по одному на кабинет;
+ *   settings.flow — какой вид задачи какие исходы показывает и что
+ *                   спрашивает у человека.
+ *
+ * Нет настройки — работает как раньше. Это нужно, чтобы Квартал не
+ * моргнул, пока карта для него ещё не перенесена в базу.
+ */
+export type FlowStep = Omit<Outcome, 'label' | 'color'>;
+
+type OptionLike = { value: string; label: string; color?: string | null };
+
+export const buildFlow = (
+  kind: string | null | undefined,
+  options?: readonly OptionLike[] | null,
+  settings?: unknown,
+): Outcome[] => {
+  const flow = (settings as { flow?: Record<string, FlowStep[]> } | null)?.flow;
+  const steps = flow?.[kind ?? 'MANUAL'];
+
+  if (!steps?.length) {
+    return flowFor(kind);
+  }
+
+  const byValue = new Map((options ?? []).map((item) => [item.value, item]));
+
+  return steps.map((step) => {
+    const option = byValue.get(step.value);
+    return {
+      ...step,
+      label: option?.label ?? step.value,
+      color: option?.color ?? 'gray',
+    };
+  });
+};
+
+/** Подпись исхода по метаданным, с откатом на зашитую карту. */
+export const labelFrom = (
+  value: string | null | undefined,
+  options?: readonly OptionLike[] | null,
+) =>
+  (options ?? []).find((item) => item.value === value)?.label ??
+  outcomeLabel(value);
